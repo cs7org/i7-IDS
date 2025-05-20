@@ -3,9 +3,6 @@ from loguru import logger
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.base import ClassifierMixin
-from sklearn.base import clone
-from sklearn.metrics import f1_score
 
 
 class RFE:
