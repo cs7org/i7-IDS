@@ -1,0 +1,35 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="ids_expt",
+    version="0.1",
+    author="Ramkrishna Acharya",
+    description="A package for IDS experiments",
+    long_description_content_type="text/markdown",
+    url="https://github.com/q-viper/ids_expt",
+    packages=find_packages(),  # Automatically find and include all packages
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires=">=3.10",
+    install_requires=[
+        "pandas>=1.5.0",
+        "scikit-learn>=1.0.0",
+        "matplotlib>=3.5.0",
+        "seaborn>=0.11.2",
+        "pydantic>=1.10.0",
+        "tqdm>=4.62.3",
+        "scipy>=1.7.1",
+        "imbalanced-learn>=0.8.0",
+        "pytest>=6.2.4",
+        "mlflow",
+        "ctgan==0.11.0",
+        "scapy==2.6.1",
+        "loguru",
+        "torchmetrics",
+        "opencv-python>=4.10",
+        "numpy<=1.26.4",
+    ],
+)

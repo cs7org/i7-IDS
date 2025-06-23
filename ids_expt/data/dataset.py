@@ -1,0 +1,258 @@
+from torch.utils.data import Dataset as TorchDataset
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+import pandas as pd
+import numpy as np
+import torch
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from loguru import logger
+
+from ids_expt.core.defs import DataType, SamplingMethod, NormalizationMethod
+from ids_expt.core.configs import DataSetConfig
+from sklearn.model_selection import train_test_split
+
+
+class DFDataSet:
+    def __init__(self, config: DataSetConfig = DataSetConfig()):
+        """
+        Usage:
+
+        ```python
+            train_dataset, val_dataset = DFDataSet(
+            config=DataSetConfig(sampling_method=SamplingMethod.UNDERSAMPLE, max_data=100)
+        ).get_datasets()
+
+        Args:
+            config (DataSetConfig): Configuration for the dataset.
+
+        """
+        self.config = config
+        self.data_type = DataType.TRAIN
+        self.data = self._load_data()
+
+    def _load_data(self):
+        df = pd.read_csv(self.config.csv_path, low_memory=False)
+        df = df[~np.isinf(df.select_dtypes(include=[np.number])).any(axis=1)]
+        df.columns = [c.strip() for c in df.columns]
+        available_labels = df[self.config.label_column].unique().tolist()
+
+        if self.config.label_column not in df.columns:
+            raise ValueError(
+                f"Label column '{self.config.label_column}' not found in the data."
+            )
+        if not self.config.labels:
+            self.config.labels = available_labels
+
+        if self.config.combine_attacks:
+            df[self.config.label_column] = df[self.config.label_column].apply(
+                lambda x: (
+                    self.config.normal_label
+                    if x == self.config.normal_label
+                    else "Attack"
+                )
+            )
+
+        # select max data by class
+        if self.config.max_data > 0:
+            logger.info(f"Limiting data to {self.config.max_data} samples per class.")
+            df = (
+                df.groupby(self.config.label_column)
+                .apply(
+                    lambda x: x.sample(
+                        min(len(x), self.config.max_data),
+                        random_state=self.config.random_state,
+                    )
+                )
+                .reset_index(drop=True)
+            )
+        self.label_encoding = {
+            label: idx
+            for idx, label in enumerate(df[self.config.label_column].unique())
+        }
+        # label encoding to one hot encoding
+        for label in self.label_encoding.keys():
+            lbl = [0] * len(self.label_encoding)
+            idx = self.label_encoding[label]
+            lbl[idx] = 1
+            self.label_encoding[label] = lbl
+        if df.empty:
+            raise ValueError("No data found in the specified CSV files.")
+
+        return df
+
+    def get_datasets(self):
+        # only keep the features and label column
+        self.data = self.data[self.config.features + [self.config.label_column]]
+
+        # split the data into train and validation sets
+        if self.config.train_ratio <= 0 or self.config.train_ratio >= 1:
+            raise ValueError("train_ratio must be between 0 and 1 (exclusive).")
+
+        label_counts = self.data[self.config.label_column].value_counts()
+        logger.info(f"Label counts in the dataset: {label_counts.to_dict()}")
+        # sample data for training and validation by grouping by label
+        self.data["idx"] = self.data.index
+        # train_df = self.data.groupby(self.config.label_column).apply(
+        #     lambda x: x.sample(
+        #         frac=self.config.train_ratio,
+        #         random_state=self.config.random_state,
+        #         replace=False,
+        #     )
+        # )
+        train_df, validation_df = train_test_split(
+            self.data,
+            test_size=1 - self.config.train_ratio,
+            stratify=self.data[self.config.label_column],
+            random_state=self.config.random_state,
+        )
+        logger.info(
+            f"Training dataset sampled with label counts: {train_df[self.config.label_column].value_counts().to_dict()}"
+        )
+
+        # train_df = train_df.reset_index(drop=True)
+        # validation_df = self.data[~self.data.index.isin(train_df["idx"])]
+        # # remove idx from both df
+        # train_df = train_df.drop(columns=["idx"])
+        # validation_df = validation_df.drop(columns=["idx"])
+
+        logger.info(
+            f"Validation dataset sampled with label counts: {validation_df[self.config.label_column].value_counts().to_dict()}"
+        )
+
+        # apply over/under sampling on trainset only
+        if self.config.sampling_method == SamplingMethod.OVERSAMPLE:
+            logger.info("Applying SMOTE oversampling to the training dataset.")
+            smote = SMOTE(random_state=self.config.random_state)
+            X_train, y_train = smote.fit_resample(
+                train_df[self.config.features], train_df[self.config.label_column]
+            )
+            train_df = pd.DataFrame(X_train, columns=self.config.features)
+            train_df[self.config.label_column] = y_train
+
+        elif self.config.sampling_method == SamplingMethod.UNDERSAMPLE:
+            logger.info("Applying RandomUnderSampler to the training dataset.")
+            undersampler = RandomUnderSampler(random_state=self.config.random_state)
+            X_train, y_train = undersampler.fit_resample(
+                train_df[self.config.features], train_df[self.config.label_column]
+            )
+            train_df = pd.DataFrame(X_train, columns=self.config.features)
+            train_df[self.config.label_column] = y_train
+        else:
+            logger.info("No sampling applied to the training dataset.")
+
+        # apply normalization on train and validation datasets
+        if self.config.normalization_method == NormalizationMethod.MIN_MAX:
+            logger.info("Applying Min-Max normalization to the datasets.")
+            scaler = MinMaxScaler()
+            train_df[self.config.features] = scaler.fit_transform(
+                train_df[self.config.features]
+            )
+        elif self.config.normalization_method == NormalizationMethod.STANDARD:
+            logger.info("Applying Standard normalization to the datasets.")
+            scaler = StandardScaler()
+            train_df[self.config.features] = scaler.fit_transform(
+                train_df[self.config.features]
+            )
+        else:
+            logger.info("No normalization applied to the datasets.")
+            scaler = None
+
+        if scaler is not None:
+            validation_df[self.config.features] = scaler.transform(
+                validation_df[self.config.features]
+            )
+        self.scaler = scaler
+
+        train_dataset = DFDataSet(
+            config=self.config,
+        )
+        validation_dataset = DFDataSet(
+            config=self.config,
+        )
+
+        train_df = train_df.reset_index(drop=True)
+        validation_df = validation_df.reset_index(drop=True)
+
+        train_dataset.data = train_df
+        validation_dataset.data = validation_df
+        train_dataset.data_type = DataType.TRAIN
+        validation_dataset.data_type = DataType.VALIDATION
+        train_dataset.label_encoding = self.label_encoding
+        validation_dataset.label_encoding = self.label_encoding
+        train_dataset.scaler = self.scaler
+        validation_dataset.scaler = self.scaler
+
+        logger.info(
+            f"Train dataset size: {train_dataset.data.shape}, Validation dataset size: {validation_dataset.data.shape}"
+        )
+
+        return train_dataset, validation_dataset
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
+        X = row[self.config.features].values.astype(float)
+        y = row[self.config.label_column]
+        if y not in self.label_encoding:
+            raise ValueError(f"Label '{y}' not found in class encoding.")
+        y = self.label_encoding[y]
+
+        return X, y
+
+
+class CLFDataSet(TorchDataset):
+    def __init__(self, df_ds: DFDataSet):
+        self.dataset = df_ds
+        self.config = df_ds.config
+        self.data = df_ds.data
+        self.label_encoding = df_ds.label_encoding
+        self.data_type = df_ds.data_type
+        self.num_classes = len(self.label_encoding)
+        # Get class counts
+        class_counts = self.data[self.config.label_column].value_counts().to_dict()
+
+        # Compute inverse frequency weights
+        class_weights = {label: 1.0 / count for label, count in class_counts.items()}
+
+        # Order weights according to label encoding
+        weights_list = [class_weights[label] for label in self.label_encoding.keys()]
+
+        # Convert to tensor (no need to normalize)
+        self.class_weights = torch.tensor(weights_list, dtype=torch.float32)
+        self.class_weights = (
+            self.class_weights * len(self.class_weights) / self.class_weights.sum()
+        )
+        self.label_counts = class_counts
+        self.X = self.data[self.config.features].values.astype(float)
+        self.y = self.data[self.config.label_column].values
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        X = self.X[idx]
+        y = self.y[idx]
+        if y not in self.label_encoding:
+            raise ValueError(f"Label '{y}' not found in class encoding.")
+        y = self.label_encoding[y]
+        # convert to tensor
+        X = np.array(X, dtype=np.float32)
+        y = np.array(y, dtype=np.int64)
+
+        X = torch.from_numpy(X)
+        y = torch.tensor(y, dtype=torch.float32)
+
+        return X, y
+
+
+if __name__ == "__main__":
+    config = DataSetConfig()
+    dataset1 = DFDataSet(config=config)
+    train_ds, val_ds = dataset1.get_datasets()
+
+    dataset2 = DFDataSet(config=config)
+    train_ds2, val_ds2 = dataset2.get_datasets()
+    print("Train Dataset Length:", len(train_ds2))
+    print("Validation Dataset Length:", len(val_ds2))
