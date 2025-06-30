@@ -90,7 +90,7 @@ for epsilon in EPSILONS:
         model=ClfModel(model),
         clip_values=clip_values,
         loss=torch.nn.CrossEntropyLoss(),
-        input_shape=(1, 6 * 32, 8 * 32),
+        input_shape=(1, 6 * 32, 256),
         nb_classes=test_ds.data_df.label.nunique(),
         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
     )

@@ -4,9 +4,10 @@ setup(
     name="ids_expt",
     version="0.1",
     author="Ramkrishna Acharya",
+    author_email="qramkrishna.acharya@fau.de",
     description="A package for IDS experiments",
     long_description_content_type="text/markdown",
-    url="https://github.com/q-viper/ids_expt",
+    url="https://github.com/cs7org/i7-IDS/",
     packages=find_packages(),  # Automatically find and include all packages
     classifiers=[
         "Programming Language :: Python :: 3",
