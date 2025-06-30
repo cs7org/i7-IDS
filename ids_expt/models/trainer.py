@@ -293,7 +293,11 @@ class NNTrainer:
                         f"{self.config.early_stopping_patience} epochs."
                     )
                     break
-
+            # Save the optimizer state
+            torch.save(
+                self.optimizer.state_dict(),
+                self.config.run_dir / "optimizer_state.pth",
+            )
             # update metric history
             for metric in epoch_metrics:
                 self.metric_history[metric].append(epoch_metrics[metric])

@@ -12,7 +12,7 @@ from loguru import logger
 
 
 if __name__ == "__main__":
-    batch_size = 128
+    batch_size = 64
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
