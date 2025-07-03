@@ -79,7 +79,7 @@ attacks.extend(
 )
 adv = AdversarialExperiment(
     model=model,
-    model_name="bigger_cnn2d",
+    model_name=model_path.parent.name,
     attacks=attacks,
     train_dataset=TorchImageDataset(train_ds),
     test_dataset=TorchImageDataset(test_ds),
