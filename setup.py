@@ -32,5 +32,7 @@ setup(
         "torchmetrics",
         "opencv-python>=4.10",
         "numpy<=1.26.4",
+        "torchvision",
+        "psutil"
     ],
 )

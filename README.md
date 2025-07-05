@@ -34,6 +34,10 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 ### Baseline Model Training
 * First baseline model is from the [Data Authors](https://ieeexplore.ieee.org/document/9881726).
 
+## Debug on HPC
+salloc.tinygpu --gres=gpu:1 --time=01:00:00
+
+
 ## Model Training
 * PyTorch 2.5.0 with GPU.
 * As MLFlow is being used for logging the parameters, command `mlflow server` should be run before training a model.

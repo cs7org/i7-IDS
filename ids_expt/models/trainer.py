@@ -199,9 +199,9 @@ class NNTrainer:
             # add loss as first metric
             epoch_metrics["loss"] += loss.item()
             if is_train:
-                pbar.set_description(f"Training - Epoch {i + 1}/{len(dataloader)}")
+                pbar.set_description(f"Epoch[{self.epoch}/{self.config.epochs}] - Training")
             else:
-                pbar.set_description(f"Validation - Epoch {i + 1}/{len(dataloader)}")
+                pbar.set_description(f"Epoch[{self.epoch}/{self.config.epochs}] - Validation")
 
             epoch_loss += loss.item()
             pbar.set_postfix({"loss": loss.item()})
@@ -249,6 +249,7 @@ class NNTrainer:
         best_model_path = self.config.run_dir / self.config.best_model_name
 
         for epoch in range(self.config.epochs):
+            self.epoch = epoch
             logger.info(f"Epoch {epoch + 1}/{self.config.epochs}")
             # Training step
             outputs, epoch_loss, epoch_metrics = self.run_epoch(
