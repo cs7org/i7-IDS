@@ -1,4 +1,5 @@
 # local files
+*.out
 *.zip
 120_timeout_dnp3_sessions
 output_cic_labelled_sessions

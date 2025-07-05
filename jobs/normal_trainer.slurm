@@ -8,11 +8,12 @@
 
 unset SLURM_EXPORT_ENV
 module load python
+conda activate pytorch
 # export proxy
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80
 pip install -e .
-conda activate pytorch
+
 
 
 

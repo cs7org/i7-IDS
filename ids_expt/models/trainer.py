@@ -13,6 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import mlflow
+import sys
 
 
 class NNTrainer:
@@ -180,6 +181,7 @@ class NNTrainer:
             dataloader,
             desc="Training" if is_train else "Validation",
             unit="batch",
+            disable=not sys.stdout.isatty(),  # Disable tqdm in non-interactive environments
         )
         if is_train:
             self.model.train()

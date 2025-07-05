@@ -32,8 +32,8 @@ if project_dir is None:
 else:
     project_dir = Path(project_dir)
 
+batch_size = os.environ.get("BATCH_SIZE", 128)
 if __name__ == "__main__":
-    batch_size = 256
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
