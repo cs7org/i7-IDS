@@ -11,7 +11,7 @@ import torch
 from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
 from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
 from art.estimators.classification import PyTorchClassifier
-from ids_expt.utils.confusion_matrix import get_confusion_matrix
+
 
 model_path = Path(
     r"C:\Users\Viper\Desktop\thesis_code\results\image_classification\bigger_cnn2d\best_model.pth"

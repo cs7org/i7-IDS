@@ -5,24 +5,24 @@ from ids_expt.data.session_image_dataset import (
     TorchImageDataset,
     SamplingMethod,
 )
-from ids_expt.models.cnn import CNN2D as SimpleCNN, BiggerCNN2D
+from ids_expt.models.cnn import CNN2D as BiggerCNN2D
+from ids_expt.models.image_model import ImageClfModel
 import torch
 from pathlib import Path
 from loguru import logger
 
+project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
 
 if __name__ == "__main__":
     batch_size = 64
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
-        session_images_dir=Path(
-            r"C:\Users\Viper\Desktop\thesis_code\notebooks\120_timeout_dnp3_sessions\session_images"
-        ),
-        labels_file=Path(
-            r"C:\Users\Viper\Desktop\thesis_code\notebooks\120_timeout_dnp3_sessions\labelled_sessions.csv"
-        ),
-        sampling_method=SamplingMethod.OVERSAMPLE,
+        session_images_dir=project_dir
+        / "data/120_timeout_dnp3_sessions/session_images",
+        labels_file=project_dir
+        / "data/120_timeout_dnp3_sessions/labelled_sessions.csv",
+        sampling_method=SamplingMethod.NONE,
     )
 
     # Load the dataset
@@ -30,33 +30,31 @@ if __name__ == "__main__":
 
     models = [
         (
-            "bigger_cnn2d",
-            BiggerCNN2D(
+            # "bigger_cnn2d_nosampling",
+            # BiggerCNN2D(
+            #     in_channel=1,
+            #     num_classes=len(train_ds.label_encoding),
+            # ),
+            "resnet18",
+            ImageClfModel(
                 in_channel=1,
                 num_classes=len(train_ds.label_encoding),
-                dropout_rate=0.1,
             ),
         ),
-        # (
-        #     "simple_cnn",
-        #     SimpleCNN(
-        #         in_channel=1,
-        #         num_classes=len(train_ds.label_encoding),
-        #     ),
-        # ),
     ]
     for run_name, model in models:
         # Initialize the trainer
         trainer = NNTrainer(
             config=NNTrainerConfig(
-                result_dir=Path(r"C:\Users\Viper\Desktop\thesis_code\results"),
+                result_dir=project_dir / "results",
                 expt_name="image_classification",
                 run_name=run_name,
-                epochs=10000,
+                epochs=1000,
                 batch_size=batch_size,
                 learning_rate=0.0001,
                 device="cuda" if torch.cuda.is_available() else "cpu",
-                early_stopping_patience=1000,
+                early_stopping_patience=100,
+                log_mlflow=False,
             ),
             model=model,
             train_dataset=TorchImageDataset(train_ds),

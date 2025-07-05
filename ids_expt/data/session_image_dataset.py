@@ -67,7 +67,7 @@ class SessionImageDataConfig(BaseModel):
         description="Whether to normalize image pixel values.",
     )
     min_num_pkts: int = Field(
-        default=10,
+        default=1,
         ge=1,
         description="Minimum number of packets to consider for each sample.",
     )

@@ -128,37 +128,37 @@ class NNTrainer:
         """Get the metrics based on the configuration."""
         num_classes = self.train_dataset.num_classes
 
-        if num_classes == 2:
-            # Binary classification
-            metrics = MetricCollection(
-                {
-                    "accuracy": Accuracy(task="binary"),
-                    "precision": Precision(task="binary", average="macro"),
-                    "recall": Recall(task="binary", average="macro"),
-                    "f1_score": F1Score(task="binary", average="macro"),
-                    "roc_auc": AUROC(task="binary"),  # Binary AUROC
-                }
-            )
-        else:
-            # Multiclass classification
-            metrics = MetricCollection(
-                {
-                    "accuracy": Accuracy(
-                        task="multiclass", num_classes=num_classes, average="macro"
-                    ),
-                    "precision": Precision(
-                        task="multiclass", num_classes=num_classes, average="macro"
-                    ),
-                    "recall": Recall(
-                        task="multiclass", num_classes=num_classes, average="macro"
-                    ),
-                    "f1_score": F1Score(
-                        task="multiclass", num_classes=num_classes, average="macro"
-                    ),
-                }
-            )
+        metrcs = {}
+        for metric in self.config.metrics:
+            if metric == "accuracy":
+                metrcs["accuracy"] = Accuracy(
+                    task="binary" if num_classes == 2 else "multiclass",
+                    num_classes=num_classes,
+                    average="macro",
+                )
+            elif metric == "precision":
+                metrcs["precision"] = Precision(
+                    task="binary" if num_classes == 2 else "multiclass",
+                    num_classes=num_classes,
+                    average="macro",
+                )
+            elif metric == "recall":
+                metrcs["recall"] = Recall(
+                    task="binary" if num_classes == 2 else "multiclass",
+                    num_classes=num_classes,
+                    average="macro",
+                )
+            elif metric == "f1_score":
+                metrcs["f1_score"] = F1Score(
+                    task="binary" if num_classes == 2 else "multiclass",
+                    num_classes=num_classes,
+                    average="macro",
+                )
 
-        return metrics.to(self.device)
+        metrcs = MetricCollection(metrcs)
+        metrics = metrcs.to(self.device)
+        logger.info(f"Metrics initialized: {list(metrics.keys())}")
+        return metrics
 
     def forward_step(self, batch):
         inputs, labels = batch
@@ -221,17 +221,27 @@ class NNTrainer:
         return outputs, epoch_loss, epoch_metrics
 
     def train(self):
+        logger.info("Starting training process...")
         if self.config.log_mlflow:
             # if mlflow object is not None, log metrics to mlflow
             if not self.started_mlflow:
-                mlflow.set_tracking_uri("http://localhost:5000")
-                mlflow.set_experiment(self.config.expt_name)
-                mlflow.start_run(
-                    run_name=self.config.run_name,
-                    nested=False,
-                )
-                logger.info("MLflow run started.")
-                self.started_mlflow = True
+                try:
+                    mlflow.set_tracking_uri("http://localhost:5000")
+                    mlflow.set_experiment(self.config.expt_name)
+                    mlflow.start_run(
+                        run_name=self.config.run_name,
+                        nested=False,
+                    )
+                    logger.info("MLflow run started.")
+                    self.started_mlflow = True
+                except Exception as e:
+                    logger.error(f"Failed to start MLflow run: {e}")
+                    logger.warning(
+                        "MLflow is not running. Metrics will not be logged to MLflow."
+                    )
+                    self.started_mlflow = False
+                    self.config.log_mlflow = False
+
         self.model.train()
         best_metric_value = (
             float("-inf") if self.config.best_model_metric_greater else float("inf")
