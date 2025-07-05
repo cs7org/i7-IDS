@@ -231,7 +231,7 @@ class DFDataSet:
             gray_img = self.scaler(gray_img)
             return gray_img, label, lbl_string
 
-        raise IndexError("DataFrame is empty or not loaded.")
+        raise ValueError(f"Image not found at {image_path}.")
 
 
 class TorchImageDataset(TorchDataset):

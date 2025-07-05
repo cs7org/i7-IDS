@@ -10,18 +10,30 @@ from ids_expt.models.image_model import ImageClfModel
 import torch
 from pathlib import Path
 from loguru import logger
+import os
 
-project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
+data_dir = os.environ.get("DATA_DIR")
+if data_dir is None:
+    logger.warning(
+        "DATA_DIR environment variable not set, using default data directory."
+    )
+    data_dir = Path(
+        r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions"
+    )
+project_dir = os.environ.get("PROJECT_DIR")
+if project_dir is None:
+    logger.warning(
+        "PROJECT_DIR environment variable not set, using default project directory."
+    )
+    project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
 
 if __name__ == "__main__":
     batch_size = 64
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
-        session_images_dir=project_dir
-        / "data/120_timeout_dnp3_sessions/session_images",
-        labels_file=project_dir
-        / "data/120_timeout_dnp3_sessions/labelled_sessions.csv",
+        session_images_dir=data_dir / "session_images",
+        labels_file=data_dir / "labelled_sessions.csv",
         sampling_method=SamplingMethod.NONE,
     )
 
