@@ -4,7 +4,7 @@
 #SBATCH --partition=rtx3080
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=temp_job.out
+#SBATCH --output=temp_job1.out
 
 unset SLURM_EXPORT_ENV
 module load python
@@ -22,5 +22,5 @@ cp $HOME/i7-IDS/data/labelled_sessions.csv $TMPDIR
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normal.py &
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normalized.py
+python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normal2.py &
+python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normalized2.py
