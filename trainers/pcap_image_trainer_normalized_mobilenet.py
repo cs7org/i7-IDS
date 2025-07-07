@@ -75,6 +75,8 @@ if __name__ == "__main__":
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 early_stopping_patience=100,
                 log_mlflow=False,
+                best_model_metric="f1_score",
+                best_model_metric_greater=True,
             ),
             model=model,
             train_dataset=TorchImageDataset(train_ds),
