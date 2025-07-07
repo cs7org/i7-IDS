@@ -33,6 +33,7 @@ setup(
         "opencv-python>=4.10",
         "numpy<=1.26.4",
         "torchvision",
-        "psutil"
+        "psutil",
+        "adversarial-robustness-toolbox==1.20.0",
     ],
 )

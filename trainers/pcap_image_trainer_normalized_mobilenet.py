@@ -33,6 +33,7 @@ else:
     project_dir = Path(project_dir)
 
 batch_size = os.environ.get("BATCH_SIZE", 128)
+sampling_method = os.environ.get("SAMPLING_METHOD", "nosampling")
 if __name__ == "__main__":
     # Configuration parameters
     config = SessionImageDataConfig(
@@ -40,7 +41,7 @@ if __name__ == "__main__":
         session_images_dir=data_dir / "session_images",
         labels_file=data_dir / "labelled_sessions.csv",
         use_normalized=True,
-        sampling_method=SamplingMethod.NONE,
+        sampling_method=sampling_method.lower(),
     )
 
     # Load the dataset
@@ -54,7 +55,7 @@ if __name__ == "__main__":
             #     num_classes=len(train_ds.label_encoding),
             #     dropout_rate=0.1,
             # ),
-            "mobilenetv3_large_normalized",
+            f"mobilenetv3_large_normalized_{sampling_method}",
             ImageClfModel(
                 in_channel=1,
                 num_classes=len(train_ds.label_encoding),

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #
 #SBATCH --gres=gpu:rtx3080:1
-#SBATCH --partition=rtx3080
+#SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
 #SBATCH --output=mobilenet.out
@@ -22,6 +22,7 @@ cp $HOME/i7-IDS/data/labelled_sessions.csv $TMPDIR
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 export BATCH_SIZE=64
+export SAMPLING_METHOD="nosampling"
 
 python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normal_mobilenet.py &
 python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normalized_mobilenet.py

@@ -81,6 +81,13 @@ class NNTrainer:
             f"Training dataset: {len(train_dataset)} samples, "
             f"Validation dataset: {len(val_dataset)} samples."
         )
+        lbl_col = train_dataset.config.label_column
+        logger.info(
+            f"Train Labels: {train_dataset.data[lbl_col].value_counts().to_dict()}"
+        )
+        logger.info(
+            f"Validation Labels: {val_dataset.data[lbl_col].value_counts().to_dict()}"
+        )
         # save config
         with open(self.config.run_dir / "train_config.json", "w") as f:
             f.write(self.config.model_dump_json(indent=2))
@@ -116,8 +123,11 @@ class NNTrainer:
                 weight=self.train_dataset.class_weights.to(self.device)
             )
             logger.info(f"Label Counts: {self.train_dataset.label_counts}")
+            labels = list(self.train_dataset.label_encoding.keys())
+            class_wts = self.train_dataset.class_weights.tolist()
+            lbl_wts = {k: v for k, v in zip(labels, class_wts)}
             logger.info(
-                f"Criterion updated to CrossEntropyLoss with class weights: {list(self.train_dataset.label_encoding.keys())}:{self.train_dataset.class_weights}."
+                f"Criterion updated to CrossEntropyLoss with class weights: {lbl_wts}."
             )
 
         else:
@@ -201,9 +211,13 @@ class NNTrainer:
             # add loss as first metric
             epoch_metrics["loss"] += loss.item()
             if is_train:
-                pbar.set_description(f"Epoch[{self.epoch}/{self.config.epochs}] - Training")
+                pbar.set_description(
+                    f"Epoch[{self.epoch}/{self.config.epochs}] - Training"
+                )
             else:
-                pbar.set_description(f"Epoch[{self.epoch}/{self.config.epochs}] - Validation")
+                pbar.set_description(
+                    f"Epoch[{self.epoch}/{self.config.epochs}] - Validation"
+                )
 
             epoch_loss += loss.item()
             pbar.set_postfix({"loss": loss.item()})

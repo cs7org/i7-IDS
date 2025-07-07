@@ -31,13 +31,14 @@ if project_dir is None:
 else:
     project_dir = Path(project_dir)
 batch_size = os.environ.get("BATCH_SIZE", 128)
+sampling_method = os.environ.get("SAMPLING_METHOD", "nosampling")
 if __name__ == "__main__":
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
         session_images_dir=data_dir / "session_images",
         labels_file=data_dir / "labelled_sessions.csv",
-        sampling_method=SamplingMethod.NONE,
+        sampling_method=sampling_method.lower(),
     )
 
     # Load the dataset
@@ -45,16 +46,16 @@ if __name__ == "__main__":
 
     models = [
         (
-            # "bigger_cnn2d_nosampling",
-            # BiggerCNN2D(
-            #     in_channel=1,
-            #     num_classes=len(train_ds.label_encoding),
-            # ),
-            "resnet18",
-            ImageClfModel(
+            f"bigger_cnn2d_{sampling_method}",
+            BiggerCNN2D(
                 in_channel=1,
                 num_classes=len(train_ds.label_encoding),
             ),
+            # "resnet18",
+            # ImageClfModel(
+            #     in_channel=1,
+            #     num_classes=len(train_ds.label_encoding),
+            # ),
         ),
     ]
     for run_name, model in models:

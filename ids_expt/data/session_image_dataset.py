@@ -49,12 +49,12 @@ class SessionImageDataConfig(BaseModel):
         description="Maximum number of samples to be used from each class.",
     )
     byte_length: int = Field(
-        default=8 * 32,
+        default=256,  # this is to match normalized images
         ge=1,
         description="Length of byte sequences to be used for image generation.",
     )
     num_pkts: int = Field(
-        default=6 * 32,
+        default=138,  # See the summary of num pkts for all. this is max of max
         ge=1,
         description="Number of packets to consider for each sample.",
     )
@@ -70,6 +70,10 @@ class SessionImageDataConfig(BaseModel):
         default=1,
         ge=1,
         description="Minimum number of packets to consider for each sample.",
+    )
+    label_column: str = Field(
+        default="flow_label",
+        description="Column name in the labels file that contains the labels.",
     )
 
 
@@ -91,7 +95,7 @@ class DFDataSet:
         data_df = pd.read_csv(self.config.labels_file)
         data_df = data_df.query(f"total_matched_pkts>={self.config.min_num_pkts}")
         self.data_df = data_df.copy()
-        self.data_df["label"] = self.data_df.flow_label
+        self.data_df["label"] = self.data_df[self.config.label_column].astype(str)
         # it does notr have file_path col
         if self.config.use_normalized:
             logger.info("Using normalized images for training")

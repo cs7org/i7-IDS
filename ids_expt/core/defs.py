@@ -50,7 +50,7 @@ class DataType(str, Enum):
 class SamplingMethod(str, Enum):
     OVERSAMPLE = "oversample"
     UNDERSAMPLE = "undersample"
-    NONE = "none"
+    NONE = "nosampling"
 
 
 class NormalizationMethod(str, Enum):

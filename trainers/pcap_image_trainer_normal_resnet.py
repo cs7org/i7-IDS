@@ -12,7 +12,6 @@ from pathlib import Path
 from loguru import logger
 import os
 
-
 data_dir = os.environ.get("DATA_DIR")
 if data_dir is None:
     logger.warning(
@@ -31,16 +30,15 @@ if project_dir is None:
     project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
 else:
     project_dir = Path(project_dir)
-
 batch_size = os.environ.get("BATCH_SIZE", 128)
+sampling_method = os.environ.get("SAMPLING_METHOD", "nosampling")
 if __name__ == "__main__":
     # Configuration parameters
     config = SessionImageDataConfig(
         max_data=-100,
         session_images_dir=data_dir / "session_images",
         labels_file=data_dir / "labelled_sessions.csv",
-        use_normalized=True,
-        sampling_method=SamplingMethod.OVERSAMPLE,
+        sampling_method=sampling_method.lower(),
     )
 
     # Load the dataset
@@ -48,13 +46,12 @@ if __name__ == "__main__":
 
     models = [
         (
-            # "bigger_cnn2d_normalized",
+            # "bigger_cnn2d_nosampling",
             # BiggerCNN2D(
             #     in_channel=1,
             #     num_classes=len(train_ds.label_encoding),
-            #     dropout_rate=0.1,
             # ),
-            "resnet18_normalized_over",
+            f"resnet18_{sampling_method}",
             ImageClfModel(
                 in_channel=1,
                 num_classes=len(train_ds.label_encoding),
