@@ -29,12 +29,14 @@ if __name__ == "__main__":
         learning_rate=0.0001,
         early_stopping_patience=500,
         log_mlflow=False,
+        # best_model_metric="f1_score",
+        # best_model_metric_greater=True,
     )
 
     # just initialize the object.
     train_dataset, val_dataset = DFDataSet(
         config=DataSetConfig(
-            csv_path=project_dir / "data/cicflow_combined.csv",
+            csv_path=project_dir / "data/cic_ctgan_merged_synthetic_data.csv",
             features=TOP_CIC_FEATURES,
             sampling_method=SamplingMethod.NONE,
             max_data=max_data,
@@ -42,21 +44,6 @@ if __name__ == "__main__":
         )
     ).get_datasets()
 
-    train_df = pd.read_csv(project_dir / "data/cic_merged_train_data.csv")
-    train_df.columns = train_df.columns.str.strip()
-    val_df = pd.read_csv(project_dir / "data/cic_merged_test_data.csv")
-    val_df.columns = val_df.columns.str.strip()
-    X_train = train_df.drop(columns=["Label"])
-    y_train = train_df["Label"]
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_val = val_df.drop(columns=["Label"])
-    y_val = val_df["Label"]
-    X_val = scaler.transform(X_val)
-    train_dataset.data = pd.DataFrame(X_train, columns=train_df.columns[:-1])
-    train_dataset.data["Label"] = y_train.values
-    val_dataset.data = pd.DataFrame(X_val, columns=val_df.columns[:-1])
-    val_dataset.data["Label"] = y_val.values
     model = CNN1D(
         input_size=len(TOP_CIC_FEATURES),
         output_size=val_dataset.data.Label.nunique(),
