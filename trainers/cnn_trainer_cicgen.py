@@ -1,5 +1,5 @@
 if __name__ == "__main__":
-    from ids_expt.models.ffnn import FFNN
+    from ids_expt.models.cnn import CNN1D
     from ids_expt.data.dataset import (
         DataSetConfig,
         SamplingMethod,
@@ -22,15 +22,13 @@ if __name__ == "__main__":
 
     trainer_cfg = NNTrainerConfig(
         result_dir=project_dir / "results",
-        expt_name="cic_fnn",
+        expt_name="cic_cnn",
         run_name="ctgan_oversampling",
         epochs=epochs,
         batch_size=batch_size,
         learning_rate=0.0001,
-        early_stopping_patience=100,
+        early_stopping_patience=500,
         log_mlflow=False,
-        best_model_metric="f1_score",
-        best_model_metric_greater=True,
     )
 
     # just initialize the object.
@@ -59,9 +57,8 @@ if __name__ == "__main__":
     train_dataset.data["Label"] = y_train.values
     val_dataset.data = pd.DataFrame(X_val, columns=val_df.columns[:-1])
     val_dataset.data["Label"] = y_val.values
-    model = FFNN(
+    model = CNN1D(
         input_size=len(TOP_CIC_FEATURES),
-        hidden_layers=[90] * 10,
         output_size=val_dataset.data.Label.nunique(),
         use_batchnorm=True,
         dropout_rate=0.0,

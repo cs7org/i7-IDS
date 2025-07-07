@@ -7,7 +7,7 @@ class CNN1D(torch.nn.Module):
     def __init__(
         self,
         input_size: int = 46,
-        hidden_channels: list[int] = [32, 64, 128, 256],
+        hidden_channels: list[int] = [16, 32, 64, 128, 256, 512, 256, 128, 64, 32, 16],
         output_size: int = 9,
         dropout_rate: float = 0.0,
         use_batchnorm: bool = True,
@@ -33,7 +33,12 @@ class CNN1D(torch.nn.Module):
             in_channels = out_channels
 
         # Final linear layer matching output size
-        self.final_linear = torch.nn.Linear(in_channels * seq_len, output_size)
+        self.final_linear = torch.nn.Sequential(
+            torch.nn.Linear(in_channels * seq_len, (in_channels * seq_len) // 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear((in_channels * seq_len) // 2, output_size),
+        )
+
         self.softmax = torch.nn.Softmax(dim=1)
         self.conv_layers = torch.nn.Sequential(*layers)
 
