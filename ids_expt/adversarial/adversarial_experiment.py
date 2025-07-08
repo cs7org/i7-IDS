@@ -37,7 +37,7 @@ class AdversarialExperiment:
         output_dir: Path = Path(
             r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_experiment"
         ),
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        batch_size: int = 64,
     ):
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -51,6 +51,8 @@ class AdversarialExperiment:
         )
         self.output_dir = output_dir / model_name
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.loss = loss
+        self.batch_size = batch_size
 
     def run(self):
         if Path(self.output_dir / "results.txt").exists():
@@ -59,18 +61,13 @@ class AdversarialExperiment:
 
             # no attack
         logger.info("Running no attack evaluation")
-        no_attack_classifier = PyTorchClassifier(
-            model=ClfModel(self.model),
-            loss=torch.nn.CrossEntropyLoss(),
-            clip_values=(0, 1),
-            input_shape=self.input_shape,
-            nb_classes=len(self.train_dataset.label_encoding),
-            optimizer=torch.optim.Adam(self.model.parameters(), lr=0.001),
-        )
+
         predictions = []
         targets = []
         for images, labels in tqdm(
-            torch.utils.data.DataLoader(self.test_dataset, batch_size=64, shuffle=False)
+            torch.utils.data.DataLoader(
+                self.test_dataset, batch_size=self.batch_size, shuffle=False
+            )
         ):
             images = images.to(torch.float32)
             logits, proba = self.model(images.to("cuda"))
@@ -98,7 +95,7 @@ class AdversarialExperiment:
             targets = []
             for images, labels in tqdm(
                 torch.utils.data.DataLoader(
-                    self.test_dataset, batch_size=64, shuffle=False
+                    self.test_dataset, batch_size=self.batch_size, shuffle=False
                 )
             ):
                 images = images.to(torch.float32)
@@ -123,48 +120,90 @@ class AdversarialExperiment:
                     f"{attack.__class__.__name__} - eps: {attack.eps}, F1 Score: {f1.item()}\n"
                 )
 
-    def _generate_image(self, attack, out_folder, dataset, preserve_blank_areas=False):
+    def _generate_image(
+        self,
+        attack,
+        out_folder,
+        dataset: TorchImageDataset,
+        preserve_blank_areas=False,
+        as_npz=True,
+    ):
         num_samples = len(dataset)
-        if not (self.output_dir / out_folder).exists():
-            (self.output_dir / out_folder).mkdir(parents=True, exist_ok=True)
+        result_dir = self.output_dir / out_folder / dataset.data_type.value
+        if not result_dir.exists():
+            result_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Generating adversarial examples for {num_samples} samples")
-        for sample_idx in tqdm(
-            range(num_samples), desc="Generating adversarial examples"
-        ):
-            row = dataset.dataset.data_df.iloc[sample_idx]
-            filename = Path(row["file_path"]).name
-            adv_img_path = self.output_dir / out_folder / filename
-            if adv_img_path.exists():
-                logger.warning(f"Adversarial image {adv_img_path} already exists.")
-                continue
+        if as_npz:
+            batch_idx = 0
+            lbl_str_mapping = {
+                np.array(v).argmax(): k
+                for k, v in dataset.dataset.label_encoding.items()
+            }
+            for images, labels in tqdm(
+                torch.utils.data.DataLoader(
+                    dataset, batch_size=self.batch_size, shuffle=False
+                ),
+                desc="Generating adversarial examples",
+            ):
+                adv_images = attack.generate(x=images.numpy())
 
-            # arr, arr, str
-            image, label, label_str = dataset.dataset[sample_idx]
-            adv_img = attack.generate(
-                x=image.reshape(1, *self.input_shape).astype(np.float32)
-            )
-            adv_img = adv_img.reshape(self.input_shape[1:])
-            # reverse normalize
-            adv_img = adv_img * 255
-            adv_img = adv_img.astype(np.uint8)
-            # write to file
-            if preserve_blank_areas:
-                row_mask = np.all(image == 0, axis=1)
-                col_mask = np.all(image == 0, axis=0)
+                lbls_str = [
+                    lbl_str_mapping[lbl] for lbl in labels.argmax(dim=1).numpy()
+                ]
+                for i in range(len(images)):
+                    adv_img = adv_images[i].reshape(self.input_shape[1:]) * 255
+                    input_img = images[i].reshape(self.input_shape[1:]).numpy() * 255
+                    lbl_str = lbls_str[i]
+                    # Save batch to npz file
+                    adv_data_path = result_dir / f"{lbl_str}_{batch_idx}_{i}.npz"
+                    np.savez_compressed(
+                        adv_data_path,
+                        inputs=input_img.astype(np.uint8),
+                        adversarial=adv_img.astype(np.uint8),
+                        label_str=lbl_str,
+                    )
 
-                # Apply masks to adversarial image
-                adv_img[row_mask, :] = 0
-                adv_img[:, col_mask] = 0
-            cv2.imwrite(str(adv_img_path), adv_img)
+        else:
+            for sample_idx in tqdm(
+                range(num_samples), desc="Generating adversarial examples"
+            ):
+                row = dataset.dataset.data_df.iloc[sample_idx]
+                filename = Path(row["file_path"]).name
+                adv_img_path = result_dir / filename
+                if adv_img_path.exists():
+                    logger.warning(f"Adversarial image {adv_img_path} already exists.")
+                    continue
+
+                # arr, arr, str
+                image, label, label_str = dataset.dataset[sample_idx]
+                adv_img = attack.generate(
+                    x=image.reshape(1, *self.input_shape).astype(np.float32)
+                )
+                adv_img = adv_img.reshape(self.input_shape[1:])
+                # reverse normalize
+                adv_img = adv_img * 255
+                adv_img = adv_img.astype(np.uint8)
+                # write to file
+                if preserve_blank_areas:
+                    row_mask = np.all(image == 0, axis=1)
+                    col_mask = np.all(image == 0, axis=0)
+
+                    # Apply masks to adversarial image
+                    adv_img[row_mask, :] = 0
+                    adv_img[:, col_mask] = 0
+                cv2.imwrite(str(adv_img_path), adv_img)
         logger.info("Done")
+        return result_dir
 
     def _generate_tabular(self, attack, out_folder, dataset):
-
-        if not (self.output_dir / out_folder).exists():
-            (self.output_dir / out_folder).mkdir(parents=True, exist_ok=True)
+        result_dir = self.output_dir / out_folder / dataset.data_type.value
+        if not result_dir.exists():
+            result_dir.mkdir(parents=True, exist_ok=True)
         data_pairs = []
         for inp, lbl in tqdm(
-            torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False),
+            torch.utils.data.DataLoader(
+                dataset, batch_size=self.batch_size, shuffle=False
+            ),
             desc="Generating adversarial examples",
         ):
             adv_x = attack.generate(x=inp.numpy())
@@ -172,11 +211,11 @@ class AdversarialExperiment:
             for i in range(len(inp)):
                 data_pairs.append((adv_x[i], lbl[i].numpy()))
         # Save adversarial examples as npz file
-        adv_data_path = (
-            self.output_dir
-            / out_folder
-            / f"adversarial_inp_{dataset.data_type.value}.npz"
-        )
+        adv_data_path = result_dir / "adversarial_data.npz"
+        if adv_data_path.exists():
+            logger.warning(
+                f"Adversarial data {adv_data_path} already exists. Overwriting."
+            )
         np.savez_compressed(
             adv_data_path,
             inputs=np.array([pair[0] for pair in data_pairs]),
@@ -184,6 +223,7 @@ class AdversarialExperiment:
         )
 
         logger.info(f"Generated {len(data_pairs)} adversarial examples")
+        return result_dir
 
     def generate(
         self,
@@ -191,24 +231,51 @@ class AdversarialExperiment:
         out_folder: str = "",
         preserve_blank_areas=False,
         is_image_dataset=True,
+        as_npz=True,
+        compress_out_folder: bool = True,
+        copy_compressed_to: Path = None,
     ):
         logger.info(
             f"Generating adversarial examples for attack: {attack.__class__.__name__}"
         )
         if is_image_dataset:
-            self._generate_image(
-                attack, out_folder, self.train_dataset, preserve_blank_areas
+            train_adv_dir = self._generate_image(
+                attack, out_folder, self.train_dataset, preserve_blank_areas, as_npz
             )
             logger.info(
                 f"Train Adversarial examples saved to {self.output_dir / out_folder}"
             )
-            self._generate_image(
-                attack, out_folder, self.test_dataset, preserve_blank_areas
+            val_adv_dir = self._generate_image(
+                attack, out_folder, self.test_dataset, preserve_blank_areas, as_npz
             )
         else:
-            self._generate_tabular(attack, out_folder, self.train_dataset)
+            train_adv_dir = self._generate_tabular(
+                attack, out_folder, self.train_dataset
+            )
             logger.info(
                 f"Train Adversarial examples saved to {self.output_dir / out_folder}"
             )
-            self._generate_tabular(attack, out_folder, self.test_dataset)
+            val_adv_dir = self._generate_tabular(attack, out_folder, self.test_dataset)
+
+        if compress_out_folder and copy_compressed_to is not None:
+            # Compress the output folder
+            import shutil
+
+            if not copy_compressed_to.parent.exists():
+                copy_compressed_to.parent.mkdir(parents=True, exist_ok=True)
+
+            # compress train adversarial examples and copy to the specified path
+            shutil.make_archive(
+                copy_compressed_to / f"{out_folder}_train",
+                "zip",
+                train_adv_dir,
+            )
+            shutil.make_archive(
+                copy_compressed_to / f"{out_folder}_val",
+                "zip",
+                val_adv_dir,
+            )
+        else:
+            # do nothing
+            logger.info("Skipping compression of output folder as per configuration.")
         logger.info("Validation adversarial examples saved.")

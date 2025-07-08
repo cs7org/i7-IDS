@@ -14,36 +14,40 @@ from art.estimators.classification import PyTorchClassifier
 
 
 model_path = Path(
-    r"C:\Users\Viper\Desktop\thesis_code\results\image_classification\bigger_cnn2d\best_model.pth"
+    r"C:\Users\Viper\Desktop\thesis_code\results\image_classification\bigger_cnn2d\best_model_full.pth"
 )
 config = SessionImageDataConfig(
-    max_data=-10000,
+    max_data=10,
     session_images_dir=Path(
-        r"C:\Users\Viper\Desktop\thesis_code\notebooks\120_timeout_dnp3_sessions\session_images"
+        r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions\session_images"
     ),
     labels_file=Path(
-        r"C:\Users\Viper\Desktop\thesis_code\notebooks\120_timeout_dnp3_sessions\labelled_sessions.csv"
+        r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions\labelled_sessions.csv"
     ),
-    sampling_method=SamplingMethod.OVERSAMPLE,
+    # sampling_method=SamplingMethod.OVERSAMPLE,
 )
 train_ds, test_ds = DFDataSet(config=config).load_data()
-model = BiggerCNN2D(
-    in_channel=1,
-    num_classes=len(train_ds.label_encoding),
-    dropout_rate=0.1,
-).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-model.load_state_dict(
-    torch.load(
-        model_path,
-        map_location=torch.device("cuda"),
-    )
+# model = BiggerCNN2D(
+#     in_channel=1,
+#     num_classes=len(train_ds.label_encoding),
+#     dropout_rate=0.1,
+# ).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+# model.load_state_dict(
+#     torch.load(
+#         model_path,
+#         map_location=torch.device("cuda"),
+#     )
+# )
+model = torch.load(
+    model_path,
+    map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    weights_only=False,
 )
-
 
 logger.info(f"Running adversarial attacks on model: {model_path.name}")
 epsilons = [0.0001, 0.001, 0.01, 0.1]
 iterations = 10
-input_shape = (1, 6 * 32, 8 * 32)
+input_shape = (1, config.num_pkts, config.byte_length)
 
 attacks = [
     FastGradientMethod(
@@ -83,10 +87,9 @@ adv = AdversarialExperiment(
     attacks=attacks,
     train_dataset=TorchImageDataset(train_ds),
     test_dataset=TorchImageDataset(test_ds),
+    input_shape=input_shape,
 )
-for attack in attacks:
-    logger.info(f"Running attack: {attack.__class__.__name__} with eps: {attack.eps}")
-    adv.run()
+# adv.run()
 
 logger.info("Adversarial attacks completed successfully.")
 logger.info("Generating adversarial attack data...")
@@ -98,4 +101,4 @@ for attack in selected_attacks:
         f"Generating adversarial data for attack: {attack.__class__.__name__} with eps: {attack.eps}"
     )
     out_folder = attack.__class__.__name__.lower() + f"_eps_{attack.eps}"
-    adv.generate(attack, out_folder=out_folder)
+    adv.generate(attack, out_folder=out_folder, copy_compressed_to=out_folder.parent)
