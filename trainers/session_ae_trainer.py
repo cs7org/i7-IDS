@@ -1,5 +1,5 @@
-from ids_expt.models.cnn_ae import UNetAutoencoderNoSkip
-from ids_expt.data.image_pair import (
+from ids_expt.models.cnn_ae import DDSA_CNN
+from ids_expt.data.adversarial_data_pair import (
     AdversarialDataPairConfig,
     TorchPairDataset,
     AdversarialDataPair,
@@ -7,27 +7,42 @@ from ids_expt.data.image_pair import (
 from ids_expt.models.trainer_ae import AETrainer, NNTrainerConfig
 import torch
 from pathlib import Path
+import os
+from loguru import logger
 
-max_data = -100
-num_samples_per_epoch = 100
-if __name__ == "__main__":
-    model = UNetAutoencoderNoSkip(
-        encoder_name="resnet18",
-        in_channels=1,
-        out_channels=1,
-        encoder_weights=None,
+project_dir = os.environ.get("PROJECT_DIR")
+if project_dir is None:
+    logger.warning(
+        "PROJECT_DIR environment variable not set, using default project directory."
     )
+    project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
+else:
+    project_dir = Path(project_dir)
+data_dir = os.environ.get("DATA_DIR")
+if data_dir is None:
+    logger.warning(
+        "DATA_DIR environment variable not set, using default data directory."
+    )
+    data_dir = Path(
+        r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions"
+    )
+else:
+    data_dir = Path(data_dir)
+
+num_samples_per_epoch = 10
+if __name__ == "__main__":
+    model = DDSA_CNN()
     data_config = AdversarialDataPairConfig(
-        max_data=max_data, num_samples_per_epoch=num_samples_per_epoch, min_num_pkts=1
+        data_dir=data_dir, num_samples_per_epoch=num_samples_per_epoch
     )
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
     trainer = AETrainer(
         config=NNTrainerConfig(
-            result_dir=Path(r"C:\Users\Viper\Desktop\thesis_code\results"),
+            result_dir=project_dir / "results",
             expt_name="session_ae_experiment",
-            run_name="unet_ae",
+            run_name="ddsa_cnn",
             epochs=1000,
-            batch_size=16,
+            batch_size=32,
             learning_rate=0.001,
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=50,

@@ -1,4 +1,5 @@
 # local files
+res.png
 *.out
 *.zip
 120_timeout_dnp3_sessions

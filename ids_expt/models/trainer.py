@@ -81,13 +81,16 @@ class NNTrainer:
             f"Training dataset: {len(train_dataset)} samples, "
             f"Validation dataset: {len(val_dataset)} samples."
         )
-        lbl_col = train_dataset.config.label_column
-        logger.info(
-            f"Train Labels: {train_dataset.data[lbl_col].value_counts().to_dict()}"
-        )
-        logger.info(
-            f"Validation Labels: {val_dataset.data[lbl_col].value_counts().to_dict()}"
-        )
+        try:
+            lbl_col = train_dataset.config.label_column
+            logger.info(
+                f"Train Labels: {train_dataset.data[lbl_col].value_counts().to_dict()}"
+            )
+            logger.info(
+                f"Validation Labels: {val_dataset.data[lbl_col].value_counts().to_dict()}"
+            )
+        except Exception as e:
+            logger.warning(f"Could not log label counts: {e}")
         # save config
         with open(self.config.run_dir / "train_config.json", "w") as f:
             f.write(self.config.model_dump_json(indent=2))

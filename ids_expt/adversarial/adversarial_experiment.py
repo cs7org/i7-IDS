@@ -54,12 +54,10 @@ class AdversarialExperiment:
         self.loss = loss
         self.batch_size = batch_size
 
-    def run(self):
-        if Path(self.output_dir / "results.txt").exists():
-            # delete it
-            (self.output_dir / "results.txt").unlink()
-
-            # no attack
+    def run(self, results_dir: Path = None):
+        if results_dir is None:
+            results_dir = self.output_dir
+        results_dict = {}
         logger.info("Running no attack evaluation")
 
         predictions = []
@@ -80,11 +78,13 @@ class AdversarialExperiment:
             predictions,
             targets,
             self.train_dataset.label_encoding,
-            out_file=self.output_dir / "no_attack.png",
+            out_file=results_dir / "no_attack.png",
         )
         logger.info(f"Confusion Matrix:\n{cm}")
-        with open(self.output_dir / "results.txt", "a") as f:
-            f.write(f"No Attack - F1 Score: {f1.item()}\n")
+        results_dict["no_attack"] = {
+            "f1_score": f1.item(),
+            "confusion_matrix": cm.tolist(),
+        }
         logger.info("No attack evaluation completed.\n")
 
         for attack in self.attacks:
@@ -111,14 +111,23 @@ class AdversarialExperiment:
                 adv_predictions,
                 targets,
                 self.train_dataset.label_encoding,
-                out_file=self.output_dir
-                / f"{attack.__class__.__name__}_{attack.eps}.png",
+                out_file=results_dir / f"{attack.__class__.__name__}_{attack.eps}.png",
             )
             logger.info(f"Confusion Matrix:\n{cm}")
-            with open(self.output_dir / "results.txt", "a") as f:
-                f.write(
-                    f"{attack.__class__.__name__} - eps: {attack.eps}, F1 Score: {f1.item()}\n"
-                )
+            atk_name = attack.__class__.__name__ + f"_eps_{attack.eps}"
+            results_dict[atk_name] = {
+                "f1_score": f1.item(),
+                "confusion_matrix": cm.tolist(),  # Convert to list for JSON serialization
+            }
+        # Save results to a file
+        results_file = results_dir / "adv_f1_scores.json"
+
+        with open(results_file, "w") as f:
+            import json
+
+            json.dump(results_dict, f, indent=4)
+        logger.info("Adversarial evaluation completed.")
+        logger.info(f"Results saved to {results_file}")
 
     def _generate_image(
         self,
@@ -274,6 +283,9 @@ class AdversarialExperiment:
                 copy_compressed_to / f"{out_folder}_val",
                 "zip",
                 val_adv_dir,
+            )
+            logger.info(
+                f"Compressed adversarial examples saved to {copy_compressed_to / f'{out_folder}_train.zip'} and {copy_compressed_to / f'{out_folder}_val.zip'}"
             )
         else:
             # do nothing
