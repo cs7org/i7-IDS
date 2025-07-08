@@ -8,8 +8,8 @@ class DDSA_CNN(nn.Module):
         self,
         input_channels: int = 1,
         input_size: tuple = (138, 256),
-        encoder_channels: list = [32, 64, 128],
-        bottleneck_dim: int = 256,
+        encoder_channels: list = [16, 32],
+        bottleneck_dim: int = 128,
         sparsity_target=0.1,
     ):
         """

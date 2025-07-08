@@ -4,9 +4,7 @@ from ids_expt.data.session_image_dataset import (
     SessionImageDataConfig,
     DFDataSet,
     TorchImageDataset,
-    SamplingMethod,
 )
-from ids_expt.models.cnn import BiggerCNN2D
 import torch
 from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
 from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
@@ -39,7 +37,7 @@ for model_path in model_paths:
         raise FileNotFoundError(f"Model path does not exist: {model_path}")
     logger.info(f"Model path exists: {model_path}")
     config = SessionImageDataConfig(
-        max_data=10,
+        max_data=-10,
         session_images_dir=data_dir / "session_images",
         labels_file=data_dir / "labelled_sessions.csv",
         is_normalized=False,

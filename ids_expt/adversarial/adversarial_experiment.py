@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import torch
 from tqdm import tqdm
+import sys
 
 
 class ClfModel(torch.nn.Module):
@@ -64,8 +65,11 @@ class AdversarialExperiment:
         targets = []
         for images, labels in tqdm(
             torch.utils.data.DataLoader(
-                self.test_dataset, batch_size=self.batch_size, shuffle=False
-            )
+                self.test_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+            ),
+            disable=not sys.stdout.isatty(),
         ):
             images = images.to(torch.float32)
             logits, proba = self.model(images.to("cuda"))
@@ -95,8 +99,11 @@ class AdversarialExperiment:
             targets = []
             for images, labels in tqdm(
                 torch.utils.data.DataLoader(
-                    self.test_dataset, batch_size=self.batch_size, shuffle=False
-                )
+                    self.test_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                ),
+                disable=not sys.stdout.isatty(),
             ):
                 images = images.to(torch.float32)
                 adv_images = attack.generate(x=images.numpy())
@@ -150,9 +157,12 @@ class AdversarialExperiment:
             }
             for images, labels in tqdm(
                 torch.utils.data.DataLoader(
-                    dataset, batch_size=self.batch_size, shuffle=False
+                    dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
                 ),
                 desc="Generating adversarial examples",
+                disable=not sys.stdout.isatty(),
             ):
                 adv_images = attack.generate(x=images.numpy())
 
@@ -174,7 +184,9 @@ class AdversarialExperiment:
 
         else:
             for sample_idx in tqdm(
-                range(num_samples), desc="Generating adversarial examples"
+                range(num_samples),
+                desc="Generating adversarial examples",
+                disable=not sys.stdout.isatty(),
             ):
                 row = dataset.dataset.data_df.iloc[sample_idx]
                 filename = Path(row["file_path"]).name
@@ -211,9 +223,12 @@ class AdversarialExperiment:
         data_pairs = []
         for inp, lbl in tqdm(
             torch.utils.data.DataLoader(
-                dataset, batch_size=self.batch_size, shuffle=False
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
             ),
             desc="Generating adversarial examples",
+            disable=not sys.stdout.isatty(),
         ):
             adv_x = attack.generate(x=inp.numpy())
             # inp, adv pair

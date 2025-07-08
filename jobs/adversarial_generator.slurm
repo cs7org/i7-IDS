@@ -4,7 +4,7 @@
 #SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=custom.out
+#SBATCH --output=adversarial_generator.out
 
 unset SLURM_EXPORT_ENV
 module load python
@@ -22,6 +22,6 @@ cp $HOME/i7-IDS/data/labelled_sessions.csv $TMPDIR
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-python3 python3 $HOME/i7-IDS/adversarial/generate_normal.py &
-python3 python3 $HOME/i7-IDS/adversarial/generate_normalized.py
+python3 $HOME/i7-IDS/adversarial/generate_normal.py &
+python3 $HOME/i7-IDS/adversarial/generate_normalized.py
 

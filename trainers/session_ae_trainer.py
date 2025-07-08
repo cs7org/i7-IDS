@@ -28,7 +28,7 @@ if data_dir is None:
     )
 else:
     data_dir = Path(data_dir)
-
+batch_size = int(os.environ.get("BATCH_SIZE", 4))
 num_samples_per_epoch = 10
 if __name__ == "__main__":
     model = DDSA_CNN()
@@ -42,7 +42,7 @@ if __name__ == "__main__":
             expt_name="session_ae_experiment",
             run_name="ddsa_cnn",
             epochs=1000,
-            batch_size=32,
+            batch_size=1,
             learning_rate=0.001,
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=50,

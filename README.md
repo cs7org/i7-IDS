@@ -36,7 +36,7 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 
 ## Debug on HPC
 salloc.tinygpu --gres=gpu:1 --time=01:00:00
-
+`tqdm` should be disabled in HPC.
 
 ## Model Training
 * PyTorch 2.5.0 with GPU.
@@ -44,3 +44,4 @@ salloc.tinygpu --gres=gpu:1 --time=01:00:00
 * Dataset for tabular data: `ids_expt\data\dataset.py`.
 * Dataset for session image data: `ids_expt\data\session_image_dataset.py`.
 * Trainer: `\ids_expt\models\trainer.py`. A single trainer to train all models.
+

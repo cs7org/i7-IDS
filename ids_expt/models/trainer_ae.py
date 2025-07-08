@@ -12,25 +12,31 @@ class AETrainer(NNTrainer):
         train_dataset: torch.utils.data.Dataset,
         val_dataset: torch.utils.data.Dataset,
         criterion=torch.nn.MSELoss(reduction="mean"),
+        is_sparse_ae: bool = True,
     ):
         super().__init__(config, model, train_dataset, val_dataset, criterion)
+        self.is_sparse_ae = is_sparse_ae
 
     def forward_step(self, batch):
         inputs, targets = batch
         inputs = inputs.to(self.device)
         targets = targets.to(self.device)
-        outputs, bottleneck = self.model(inputs)
+        outputs = self.model(inputs)
+        if self.is_sparse_ae:
+            outputs, bottleneck = outputs
+            loss = self.criterion(outputs, targets)
+            sparse_loss = self.model.sparsity_loss(bottleneck)
+            total_loss = loss + sparse_loss * 0.01
 
-        loss = self.criterion(outputs, targets)
-        sparse_loss = self.model.sparsity_loss(bottleneck)
-        total_loss = loss + sparse_loss * 0.1
-
-        return (
-            outputs,
-            total_loss,
-            dict(
-                recon_loss=loss.item(),
-                sparsity_loss=sparse_loss.item(),
-                total_loss=total_loss.item(),
-            ),
-        )
+            return (
+                outputs,
+                total_loss,
+                dict(
+                    recon_loss=loss.item(),
+                    sparsity_loss=sparse_loss.item(),
+                    total_loss=total_loss.item(),
+                ),
+            )
+        else:
+            loss = self.criterion(outputs, targets)
+            return outputs, loss, dict(recon_loss=loss.item())

@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx2080ti:1
-#SBATCH --partition=work
+#SBATCH --gres=gpu:v100:1
+#SBATCH --partition=v100
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=custom.out
+#SBATCH --output=ae_trainer.out
 
 unset SLURM_EXPORT_ENV
 module load python
@@ -46,6 +46,7 @@ for subfolder in "$adversarial_root"/*; do
 done
 
 echo "All adversarial files prepared in $target_root"
+export BATCH_SIZE16
 
 # Clean up: delete the target_root directory
 echo "Cleaning up $target_root"
