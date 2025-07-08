@@ -44,7 +44,7 @@ class SessionImageDataConfig(BaseModel):
         default=False,
         description="Whether to combine all attack types into a single label.",
     )
-    max_data: int = Field(
+    max_data: int | float = Field(
         default=-1,
         description="Maximum number of samples to be used from each class.",
     )
@@ -125,7 +125,28 @@ class DFDataSet:
 
         if self.config.max_data > 0:
             logger.info(f"Limiting dataset to {self.config.max_data} samples per class")
-            self.data_df = self.data_df.groupby("label").head(self.config.max_data)
+            lbl_cnts = self.data_df["label"].value_counts().to_dict()
+            # if max data is ratio then find max of each label
+            if isinstance(self.config.max_data, float) and self.config.max_data < 1.0:
+                nlbl_cnts = {
+                    k: int(v * self.config.max_data) for k, v in lbl_cnts.items()
+                }
+            else:
+                nlbl_cnts = {
+                    k: min(self.config.max_data, lbl_cnts[k]) for k in lbl_cnts.keys()
+                }
+            logger.info(f"Limiting data selection to: {nlbl_cnts}")
+            self.data_df = (
+                self.data_df.groupby("label", group_keys=False)
+                .apply(
+                    lambda x: x.sample(
+                        nlbl_cnts[x.name],
+                        random_state=self.config.random_seed,
+                        replace=False,
+                    )
+                )
+                .reset_index(drop=True)
+            )
         logger.info(
             f"Final dataset size: {len(self.data_df)} entries after applying max_data limit"
         )
@@ -280,17 +301,16 @@ if __name__ == "__main__":
     df_ds = DFDataSet(
         SessionImageDataConfig(
             session_images_dir=Path(
-                r"E:\MSc Works\IDS\notebooks\120_timeout_dnp3_sessions\session_images"
+                r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions\session_images"
             ),
             labels_file=Path(
-                r"E:\MSc Works\IDS\notebooks\120_timeout_dnp3_sessions\labelled_sessions.csv"
+                r"C:\Users\Viper\Desktop\thesis_code\data\120_timeout_dnp3_sessions\labelled_sessions.csv"
             ),
             train_ratio=0.75,
             random_seed=42,
-            labels=["NORMAL", "ATTACK"],
             normal_label="NORMAL",
-            combine_attacks=True,
-            max_data=1000,
+            # combine_attacks=True,
+            max_data=0.1,
             byte_length=8 * 32,
             num_pkts=6 * 32,
             sampling_method=SamplingMethod.NONE,

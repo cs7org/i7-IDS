@@ -10,22 +10,34 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, input_size: int = 72, projection: int = 72):
+    def __init__(
+        self,
+        input_size: int = 72,
+        hidden_sizes: list = [64, 128, 256],
+        projection: int = 72,
+    ):
         super(AutoEncoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Linear(input_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, projection),
-        )
-        self.decoder = nn.Sequential(
-            nn.Linear(projection, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, input_size),
-        )
+
+        encoder_layers = []
+        input_dim = input_size
+        for hs in hidden_sizes:
+            encoder_layers.append(nn.Linear(input_dim, hs))
+            encoder_layers.append(nn.ReLU())
+            input_dim = hs
+        encoder_layers.append(nn.Linear(input_dim, projection))
+        encoder_layers.append(nn.ReLU())
+
+        decoder_layers = []
+        input_dim = projection
+        for hs in reversed(hidden_sizes):
+            decoder_layers.append(nn.Linear(input_dim, hs))
+            decoder_layers.append(nn.ReLU())
+            input_dim = hs
+        decoder_layers.append(nn.Linear(input_dim, input_size))
+        decoder_layers.append(nn.ReLU())
+
+        self.encoder = nn.Sequential(*encoder_layers)
+        self.decoder = nn.Sequential(*decoder_layers)
 
     def forward(self, x):
         encoded = self.encoder(x)

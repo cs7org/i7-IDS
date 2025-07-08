@@ -1,4 +1,3 @@
-from ids_expt.models.cnn import CNN2D as SimpleCNN, BiggerCNN2D
 from ids_expt.data.session_image_dataset import (
     SessionImageDataConfig,
     DFDataSet,
@@ -10,12 +9,10 @@ from loguru import logger
 import torch
 from torchmetrics import F1Score
 from tqdm import tqdm
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
+from ids_expt.utils.confusion_matrix import get_confusion_matrix
 from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
-from ids_expt.utils.confusion_matrix import get_confusion_matrix
+import os
 
 
 class ClfModel(torch.nn.Module):
@@ -26,8 +23,6 @@ class ClfModel(torch.nn.Module):
     def forward(self, x):
         return self.model(x)[0]
 
-
-import os
 
 data_dir = os.environ.get("DATA_DIR")
 if data_dir is None:
@@ -109,35 +104,35 @@ get_confusion_matrix(
     out_file=model_path.parent / "confusion_matrix.png",
 )
 
-# for epsilon in EPSILONS:
-#     logger.info(f"Evaluating adversarial examples with epsilon: {epsilon}")
-#     x_min, x_max = (0, 1)
-#     clip_values = (x_min, x_max)
-#     classifier = PyTorchClassifier(
-#         model=ClfModel(model),
-#         clip_values=clip_values,
-#         loss=torch.nn.CrossEntropyLoss(),
-#         input_shape=(1, 6 * 32, 8 * 32),
-#         nb_classes=test_ds.data_df.label.nunique(),
-#         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
-#     )
-#     attack = FastGradientMethod(
-#         estimator=classifier,
-#         eps=epsilon,
-#     )
-#     adv_predictions = []
-#     adv_targets = []
-#     for images, labels in tqdm(test_loader):
-#         images = images.to(torch.float32)
-#         adv_images = attack.generate(x=images.numpy())
-#         adv_logits, adv_proba = model(torch.tensor(adv_images).to("cuda"))
-#         adv_preds = torch.argmax(adv_proba, dim=1)
-#         adv_predictions.extend(adv_preds.cpu().numpy())
-#         adv_targets.extend(labels.argmax(dim=1).cpu().numpy())
-#     get_confusion_matrix(
-#         adv_predictions,
-#         adv_targets,
-#         label_keys=list(test_ds.label_encoding.keys()),
-#         out_file=model_path.parent / f"confusion_matrix_adv_{epsilon}.png",
-#         eps=epsilon,
-#     )
+for epsilon in EPSILONS:
+    logger.info(f"Evaluating adversarial examples with epsilon: {epsilon}")
+    x_min, x_max = (0, 1)
+    clip_values = (x_min, x_max)
+    classifier = PyTorchClassifier(
+        model=ClfModel(model),
+        clip_values=clip_values,
+        loss=torch.nn.CrossEntropyLoss(),
+        input_shape=(1, 6 * 32, 8 * 32),
+        nb_classes=test_ds.data_df.label.nunique(),
+        optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+    )
+    attack = FastGradientMethod(
+        estimator=classifier,
+        eps=epsilon,
+    )
+    adv_predictions = []
+    adv_targets = []
+    for images, labels in tqdm(test_loader):
+        images = images.to(torch.float32)
+        adv_images = attack.generate(x=images.numpy())
+        adv_logits, adv_proba = model(torch.tensor(adv_images).to("cuda"))
+        adv_preds = torch.argmax(adv_proba, dim=1)
+        adv_predictions.extend(adv_preds.cpu().numpy())
+        adv_targets.extend(labels.argmax(dim=1).cpu().numpy())
+    get_confusion_matrix(
+        adv_predictions,
+        adv_targets,
+        label_keys=list(test_ds.label_encoding.keys()),
+        out_file=model_path.parent / f"confusion_matrix_adv_{epsilon}.png",
+        eps=epsilon,
+    )

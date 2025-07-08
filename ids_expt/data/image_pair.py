@@ -71,7 +71,7 @@ class AdversarialDataPairConfig(BaseModel):
         default=256,
         description="Byte length of each packet (Width)",
     )
-    max_data: int = Field(
+    max_data: int | float = Field(
         default=-1,
         description="Maximum number of data points to load. -1 means no limit.",
     )
@@ -128,7 +128,29 @@ class AdversarialDataPair:
 
         if self.config.max_data > 0:
             logger.info(f"Limiting dataset to {self.config.max_data} samples per class")
-            self.data_df = self.data_df.groupby("label").head(self.config.max_data)
+            lbl_cnts = self.data_df["label"].value_counts().to_dict()
+            # if max data is ratio then find max of each label
+            if isinstance(self.config.max_data, float) and self.config.max_data < 1.0:
+                nlbl_cnts = {
+                    k: int(v * self.config.max_data) for k, v in lbl_cnts.items()
+                }
+            else:
+                nlbl_cnts = {
+                    k: min(self.config.max_data, lbl_cnts[k]) for k in lbl_cnts.keys()
+                }
+            logger.info(f"Limiting data selection to: {nlbl_cnts}")
+            self.data_df = (
+                self.data_df.groupby("label", group_keys=False)
+                .apply(
+                    lambda x: x.sample(
+                        nlbl_cnts[x.name],
+                        random_state=self.config.random_seed,
+                        replace=False,
+                    )
+                )
+                .reset_index(drop=True)
+            )
+
         logger.info(
             f"Final dataset size: {len(self.data_df)} entries after applying max_data limit"
         )
@@ -252,3 +274,18 @@ class TorchPairDataset(torch.utils.data.Dataset):
             torch.tensor(input_img, dtype=torch.float32).unsqueeze(0),
             torch.tensor(target_img, dtype=torch.float32).unsqueeze(0),
         )
+
+
+if __name__ == "__main__":
+    config = AdversarialDataPairConfig(max_data=0.1)
+    dataset = AdversarialDataPair(config)
+    train_dataset, test_dataset = dataset.load_data()
+
+    print(f"Train dataset size: {len(train_dataset)}")
+    print(f"Test dataset size: {len(test_dataset)}")
+
+    # Example of getting an item
+    input_img, target_img = train_dataset[0]
+    print(
+        f"Input image shape: {input_img.shape}, Target image shape: {target_img.shape}"
+    )

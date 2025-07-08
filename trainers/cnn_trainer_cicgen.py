@@ -9,8 +9,6 @@ if __name__ == "__main__":
     from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
     from pathlib import Path
     from loguru import logger
-    import pandas as pd
-    from sklearn.preprocessing import StandardScaler
     from ids_expt.core.defs import TOP_CIC_FEATURES
 
     project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
@@ -43,6 +41,7 @@ if __name__ == "__main__":
             train_ratio=train_ratio,
         )
     ).get_datasets()
+    val_dataset.data = val_dataset.data.query("is_synthetic != True")
 
     model = CNN1D(
         input_size=len(TOP_CIC_FEATURES),

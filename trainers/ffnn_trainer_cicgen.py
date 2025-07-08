@@ -9,8 +9,6 @@ if __name__ == "__main__":
     from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
     from pathlib import Path
     from loguru import logger
-    import pandas as pd
-    from sklearn.preprocessing import StandardScaler
     from ids_expt.core.defs import TOP_CIC_FEATURES
 
     project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
@@ -27,22 +25,21 @@ if __name__ == "__main__":
         epochs=epochs,
         batch_size=batch_size,
         learning_rate=0.0001,
-        early_stopping_patience=100,
+        early_stopping_patience=500,
         log_mlflow=False,
-        best_model_metric="f1_score",
-        best_model_metric_greater=True,
     )
 
     # just initialize the object.
     train_dataset, val_dataset = DFDataSet(
         config=DataSetConfig(
-            csv_path=project_dir / "data/cicflow_combined.csv",
+            csv_path=project_dir / "data/cic_ctgan_merged_synthetic_data.csv",
             features=TOP_CIC_FEATURES,
             sampling_method=SamplingMethod.NONE,
             max_data=max_data,
             train_ratio=train_ratio,
         )
     ).get_datasets()
+    val_dataset.data = val_dataset.data.query("is_synthetic != True")
     model = FFNN(
         input_size=len(TOP_CIC_FEATURES),
         hidden_layers=[90] * 10,

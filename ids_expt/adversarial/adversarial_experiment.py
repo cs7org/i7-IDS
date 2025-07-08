@@ -45,7 +45,9 @@ class AdversarialExperiment:
         self.attacks = attacks
         self.input_shape = input_shape
         self.f1_score = F1Score(
-            task="multiclass", num_classes=train_dataset.data.label.nunique()
+            task="multiclass",
+            num_classes=train_dataset.data[train_dataset.config.label_column].nunique(),
+            average="macro",
         )
         self.output_dir = output_dir / model_name
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -54,6 +56,39 @@ class AdversarialExperiment:
         if Path(self.output_dir / "results.txt").exists():
             # delete it
             (self.output_dir / "results.txt").unlink()
+
+            # no attack
+        logger.info("Running no attack evaluation")
+        no_attack_classifier = PyTorchClassifier(
+            model=ClfModel(self.model),
+            loss=torch.nn.CrossEntropyLoss(),
+            clip_values=(0, 1),
+            input_shape=self.input_shape,
+            nb_classes=len(self.train_dataset.label_encoding),
+            optimizer=torch.optim.Adam(self.model.parameters(), lr=0.001),
+        )
+        predictions = []
+        targets = []
+        for images, labels in tqdm(
+            torch.utils.data.DataLoader(self.test_dataset, batch_size=64, shuffle=False)
+        ):
+            images = images.to(torch.float32)
+            logits, proba = self.model(images.to("cuda"))
+            preds = torch.argmax(proba, dim=1)
+            predictions.extend(preds.cpu().numpy())
+            targets.extend(labels.argmax(dim=1).cpu().numpy())
+        f1 = self.f1_score(torch.tensor(predictions), torch.tensor(targets))
+        logger.info(f"F1 Score on Original Images: {f1:.4f}")
+        cm = get_confusion_matrix(
+            predictions,
+            targets,
+            self.train_dataset.label_encoding,
+            out_file=self.output_dir / "no_attack.png",
+        )
+        logger.info(f"Confusion Matrix:\n{cm}")
+        with open(self.output_dir / "results.txt", "a") as f:
+            f.write(f"No Attack - F1 Score: {f1.item()}\n")
+        logger.info("No attack evaluation completed.\n")
 
         for attack in self.attacks:
             logger.info(
@@ -88,7 +123,7 @@ class AdversarialExperiment:
                     f"{attack.__class__.__name__} - eps: {attack.eps}, F1 Score: {f1.item()}\n"
                 )
 
-    def _generate(self, attack, out_folder, dataset, preserve_blank_areas=False):
+    def _generate_image(self, attack, out_folder, dataset, preserve_blank_areas=False):
         num_samples = len(dataset)
         if not (self.output_dir / out_folder).exists():
             (self.output_dir / out_folder).mkdir(parents=True, exist_ok=True)
@@ -123,18 +158,57 @@ class AdversarialExperiment:
             cv2.imwrite(str(adv_img_path), adv_img)
         logger.info("Done")
 
+    def _generate_tabular(self, attack, out_folder, dataset):
+
+        if not (self.output_dir / out_folder).exists():
+            (self.output_dir / out_folder).mkdir(parents=True, exist_ok=True)
+        data_pairs = []
+        for inp, lbl in tqdm(
+            torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False),
+            desc="Generating adversarial examples",
+        ):
+            adv_x = attack.generate(x=inp.numpy())
+            # inp, adv pair
+            for i in range(len(inp)):
+                data_pairs.append((adv_x[i], lbl[i].numpy()))
+        # Save adversarial examples as npz file
+        adv_data_path = (
+            self.output_dir
+            / out_folder
+            / f"adversarial_inp_{dataset.data_type.value}.npz"
+        )
+        np.savez_compressed(
+            adv_data_path,
+            inputs=np.array([pair[0] for pair in data_pairs]),
+            adversarial=np.array([pair[1] for pair in data_pairs]),
+        )
+
+        logger.info(f"Generated {len(data_pairs)} adversarial examples")
+
     def generate(
         self,
         attack: ProjectedGradientDescent,
         out_folder: str = "",
         preserve_blank_areas=False,
+        is_image_dataset=True,
     ):
         logger.info(
             f"Generating adversarial examples for attack: {attack.__class__.__name__}"
         )
-        self._generate(attack, out_folder, self.train_dataset, preserve_blank_areas)
-        logger.info(
-            f"Train Adversarial examples saved to {self.output_dir / out_folder}"
-        )
-        self._generate(attack, out_folder, self.test_dataset, preserve_blank_areas)
+        if is_image_dataset:
+            self._generate_image(
+                attack, out_folder, self.train_dataset, preserve_blank_areas
+            )
+            logger.info(
+                f"Train Adversarial examples saved to {self.output_dir / out_folder}"
+            )
+            self._generate_image(
+                attack, out_folder, self.test_dataset, preserve_blank_areas
+            )
+        else:
+            self._generate_tabular(attack, out_folder, self.train_dataset)
+            logger.info(
+                f"Train Adversarial examples saved to {self.output_dir / out_folder}"
+            )
+            self._generate_tabular(attack, out_folder, self.test_dataset)
         logger.info("Validation adversarial examples saved.")

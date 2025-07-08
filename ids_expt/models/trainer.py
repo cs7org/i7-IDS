@@ -325,6 +325,16 @@ class NNTrainer:
                 self.optimizer.state_dict(),
                 self.config.run_dir / "optimizer_state.pth",
             )
+            # save last model
+            torch.save(
+                self.model.state_dict(),
+                self.config.run_dir / "last_model.pth",
+            )
+            # save last model full
+            torch.save(
+                self.model,
+                self.config.run_dir / "last_model_full.pth",
+            )
             # update metric history
             for metric in epoch_metrics:
                 self.metric_history[metric].append(epoch_metrics[metric])

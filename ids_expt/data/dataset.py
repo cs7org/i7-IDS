@@ -54,12 +54,22 @@ class DFDataSet:
 
         # select max data by class
         if self.config.max_data > 0:
-            logger.info(f"Limiting data to {self.config.max_data} samples per class.")
+            # if max_data is float, find the max number of samples per class
+            lbl_cnts = df[self.config.label_column].value_counts().to_dict()
+            if isinstance(self.config.max_data, float):
+                nlbl_cnts = {
+                    k: int(v * self.config.max_data) for k, v in lbl_cnts.items()
+                }
+            else:
+                nlbl_cnts = {k: self.config.max_data for k, v in lbl_cnts.items()}
+
+            logger.info(f"Limiting data to {nlbl_cnts}.")
             df = (
                 df.groupby(self.config.label_column)
                 .apply(
                     lambda x: x.sample(
-                        min(len(x), self.config.max_data),
+                        min(len(x), nlbl_cnts[x.name]),
+                        replace=False,
                         random_state=self.config.random_state,
                     )
                 )
@@ -82,7 +92,8 @@ class DFDataSet:
 
     def get_datasets(self):
         # only keep the features and label column
-        self.data = self.data[self.config.features + [self.config.label_column]]
+        # no need to filter it here
+        # self.data = self.data[self.config.features + [self.config.label_column]]
 
         # split the data into train and validation sets
         if self.config.train_ratio <= 0 or self.config.train_ratio >= 1:

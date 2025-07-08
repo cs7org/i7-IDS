@@ -33,7 +33,7 @@ class DataSetConfig(BaseModel):
         default=False,
         description="Whether to combine all attack types into a single label.",
     )
-    max_data: int = Field(
+    max_data: int | float = Field(
         default=-1,
         description="Maximum number of samples to be used from each class.",
     )
