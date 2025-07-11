@@ -7,6 +7,137 @@ from loguru import logger
 import time
 from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
+import torch.nn.functional as F
+
+
+class DDSA_FFNN(nn.Module):
+
+    def __init__(
+        self,
+        input_size: int = 37,
+        hidden_sizes: list = [16, 32, 64, 128],
+        bottleneck_dim: int = 128,
+        sparsity_lambda: float = 1e-4,
+        sparsity_target: float = 0.05,
+        dropout_rate: float = 0.25,
+    ):
+        """
+        Deep Denoising Sparse Autoencoder (DDSA) - Feedforward Neural Network
+
+        Args:
+            input_size (int): Dimension of flattened input (e.g., 784 for 28x28 images)
+            hidden_sizes (list): List of hidden layer sizes for encoder
+            bottleneck_dim (int): Dimension of the bottleneck dense layer
+            sparsity_lambda (float): Weight for sparsity penalty
+            sparsity_target (float): Target sparsity level ρ (default: 0.05)
+            dropout_rate (float): Dropout rate for regularization
+        """
+        super(DDSA_FFNN, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_sizes = hidden_sizes
+        self.bottleneck_dim = bottleneck_dim
+        self.sparsity_target = sparsity_target
+        self.sparsity_lambda = sparsity_lambda
+        self.dropout_rate = dropout_rate
+
+        # Encoder: Dense layers with ReLU activation
+        encoder_layers = []
+        in_features = input_size
+
+        for i, out_features in enumerate(hidden_sizes):
+            encoder_layers.extend(
+                [
+                    nn.Linear(in_features, out_features),
+                    nn.ReLU(inplace=True),
+                    nn.BatchNorm1d(out_features),
+                    nn.Dropout(dropout_rate),
+                ]
+            )
+            in_features = out_features
+
+        # Bottleneck layer
+        encoder_layers.extend(
+            [
+                nn.Linear(in_features, bottleneck_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout_rate),
+            ]
+        )
+
+        self.encoder = nn.Sequential(*encoder_layers)
+
+        # Decoder: Dense layers (reverse of encoder)
+        decoder_layers = []
+        in_features = bottleneck_dim
+
+        for i, out_features in enumerate(reversed(hidden_sizes)):
+            decoder_layers.extend(
+                [
+                    nn.Linear(in_features, out_features),
+                    nn.ReLU(inplace=True),
+                    nn.BatchNorm1d(out_features),
+                    nn.Dropout(dropout_rate),
+                ]
+            )
+            in_features = out_features
+
+        # Output layer
+        decoder_layers.extend(
+            [
+                nn.Linear(in_features, input_size),
+                nn.Sigmoid(),  # For normalized inputs [0,1]
+            ]
+        )
+
+        self.decoder = nn.Sequential(*decoder_layers)
+
+        # For sparsity constraint tracking
+        self.register_buffer("running_mean_activation", torch.zeros(bottleneck_dim))
+
+    def forward(self, x):
+        batch_size = x.size(0)
+
+        # Flatten input if needed
+        if x.dim() > 2:
+            x = x.view(batch_size, -1)
+
+        # Encoder
+        encoded = self.encoder(x)  # Shape: (batch, bottleneck_dim)
+
+        # Track activations for sparsity constraint (only during training)
+        if self.training:
+            mean_activation = torch.mean(encoded, dim=0)
+            self.running_mean_activation = (
+                0.999 * self.running_mean_activation + 0.001 * mean_activation.detach()
+            )
+
+        # Decoder
+        decoded = self.decoder(encoded)  # Shape: (batch, input_size)
+
+        return decoded, encoded
+
+    def sparsity_penalty(self, encoded):
+        """
+        Calculate KL divergence sparsity penalty as described in the DDSA paper
+        """
+        rho_hat = torch.mean(encoded, dim=0)
+        rho = self.sparsity_target
+        epsilon = 1e-4
+        rho_hat = torch.clamp(rho_hat, min=epsilon, max=1 - epsilon)
+        kl_divergence = rho * torch.log(rho / rho_hat) + (1 - rho) * torch.log(
+            (1 - rho) / (1 - rho_hat)
+        )
+        sparsity_penalty = torch.sum(kl_divergence)
+        return sparsity_penalty * self.sparsity_lambda
+
+    def project(self, x):
+        """
+        Get the encoded representation (bottleneck features)
+        """
+        if x.dim() > 2:
+            x = x.view(x.size(0), -1)
+        return self.encoder(x)
 
 
 class AutoEncoder(nn.Module):
@@ -188,3 +319,38 @@ class AutoEncoderTrainer:
 #     )
 
 #     trainer.train(train_features=features_df, test_features=test_features)
+
+
+# Example usage
+if __name__ == "__main__":
+
+    # Create model
+    model = DDSA_FFNN(
+        sparsity_lambda=1e-4,
+        sparsity_target=0.05,
+        dropout_rate=0.25,
+    )
+
+    print("DDSA FFNN Architecture:")
+    print("=" * 50)
+    print(model)
+    print("=" * 50)
+
+    # Test with dummy data
+    batch_size = 32
+    dummy_input = torch.randn(batch_size, 37)
+
+    # Forward pass
+    with torch.no_grad():
+        reconstructed, encoded = model(dummy_input)
+        projected = model.project(dummy_input)
+
+    print(f"Input shape: {dummy_input.shape}")
+    print(f"Reconstructed shape: {reconstructed.shape}")
+    print(f"Encoded shape: {encoded.shape}")
+    print(f"Projected shape: {projected.shape}")
+
+    # Verify shapes
+    assert reconstructed.shape == dummy_input.shape
+    assert encoded.shape == projected.shape
+    print("✓ All shapes verified correctly!")

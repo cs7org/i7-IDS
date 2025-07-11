@@ -24,7 +24,7 @@ class AETrainer(NNTrainer):
     def at_epoch_end(self):
         # read_ val_dataset and randomly sample 10 images from it
         # then visualize the original images and the reconstructed images side by side
-        import matplotlib.pyplot as plt
+
         import numpy as np
         from ids_expt.utils.vis import subplot_images
 

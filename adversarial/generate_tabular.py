@@ -21,21 +21,19 @@ model_paths = [
         r"C:\Users\Viper\Desktop\thesis_code\results\cic_cnn\ctgan_oversampling\best_model_full.pth"
     ),
 ]
+project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
+max_data = -1000
 for model_path in model_paths:
     if not model_path.exists():
         logger.error(f"Model path {model_path} does not exist.")
         exit(1)
-    # model_path = Path(
-    #     r"C:\Users\Viper\Desktop\thesis_code\results\cic_cnn\ctgan_oversampling\best_model_full.pth"
-    # )
-    project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
 
     train_dataset, val_dataset = DFDataSet(
         config=DataSetConfig(
             csv_path=project_dir / "data/cic_ctgan_merged_synthetic_data.csv",
             features=TOP_CIC_FEATURES,
             sampling_method=SamplingMethod.NONE,
-            max_data=-100,
+            max_data=max_data,
             train_ratio=0.8,
         )
     ).get_datasets()
@@ -98,7 +96,12 @@ for model_path in model_paths:
         test_dataset=DataSet(val_dataset),
     )
 
-    adv.run()
+    adv.run(
+        results_dir=project_dir
+        / "results"
+        / "adversarial_attacks"
+        / model_path.parent.parent.name
+    )
 
     logger.info("Adversarial attacks completed successfully.")
     logger.info("Generating adversarial attack data...")
