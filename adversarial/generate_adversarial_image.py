@@ -186,3 +186,5 @@ for model_path in model_paths:
         adv.generate(
             attack, out_folder=out_folder, copy_compressed_to=copy_compressed_to
         )
+
+    logger.info("Adversarial image generation completed successfully.")
