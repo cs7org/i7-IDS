@@ -36,7 +36,7 @@ class AdversarialExperiment:
         input_shape=(1, 6 * 32, 8 * 32),
         loss=torch.nn.CrossEntropyLoss(),
         output_dir: Path = Path(
-            r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_experiment"
+            r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_attacks"
         ),
         batch_size: int = 64,
     ):
@@ -243,7 +243,7 @@ class AdversarialExperiment:
             adv_x = attack.generate(x=inp.numpy())
             # inp, adv pair
             for i in range(len(inp)):
-                data_pairs.append((adv_x[i], lbl[i].numpy()))
+                data_pairs.append((inp[i], adv_x[i], lbl[i].numpy()))
         # Save adversarial examples as npz file
         adv_data_path = result_dir / "adversarial_data.npz"
         if adv_data_path.exists():
@@ -254,6 +254,7 @@ class AdversarialExperiment:
             adv_data_path,
             inputs=np.array([pair[0] for pair in data_pairs]),
             adversarial=np.array([pair[1] for pair in data_pairs]),
+            labels=np.array([pair[2] for pair in data_pairs]),
         )
 
         logger.info(f"Generated {len(data_pairs)} adversarial examples")

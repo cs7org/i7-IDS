@@ -9,7 +9,6 @@ import torch
 from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
 from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
 from art.estimators.classification import PyTorchClassifier
-import os
 import argparse
 
 # parser for model_names by comma separated, batch_size
