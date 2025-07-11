@@ -35,8 +35,8 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 * First baseline model is from the [Data Authors](https://ieeexplore.ieee.org/document/9881726).
 
 ## Debug on HPC
-salloc.tinygpu --gres=gpu:1 --time=01:00:00
-`tqdm` should be disabled in HPC.
+* `salloc.tinygpu --gres=gpu:1 --time=01:00:00`
+* `tqdm` should be disabled in HPC.
 
 ## Model Training
 * PyTorch 2.5.0 with GPU.

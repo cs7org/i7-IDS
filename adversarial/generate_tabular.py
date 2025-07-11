@@ -12,17 +12,57 @@ from ids_expt.data.dataset import (
     CLFDataSet as DataSet,
     DFDataSet,
 )
+import argparse
+
+# Argument parser for project dir, max_data, and model paths
+parser = argparse.ArgumentParser(
+    description="Adversarial Tabular Data Generation Configuration"
+)
+parser.add_argument(
+    "--project_dir",
+    type=str,
+    default=r"C:\Users\Viper\Desktop\thesis_code",
+    help="Directory containing the project files.",
+)
+parser.add_argument(
+    "--max_data",
+    type=int,
+    default=-1000,
+    help="Maximum number of data points to use. Use -ve for all data.",
+)
+parser.add_argument(
+    "--models",
+    type=str,
+    default=[
+        "cic_fnn,cic_cnn",
+    ],
+    help="Model names in comma separated.",
+)
+parser.add_argument(
+    "--batch_size",
+    type=int,
+    default=128,
+    help="Batch size for adversarial attack generation.",
+)
+
+args = parser.parse_args()
+project_dir = Path(args.project_dir)
+if not project_dir.exists():
+    logger.error(f"Project directory {project_dir} does not exist.")
+    exit(1)
+model_names = args.models.split(",")
+if not model_names:
+    logger.error("No model names provided. Please specify at least one model.")
+else:
+    logger.info(f"Using models: {model_names}")
 
 model_paths = [
-    Path(
-        r"C:\Users\Viper\Desktop\thesis_code\results\cic_fnn\ctgan_oversampling\best_model_full.pth"
-    ),
-    Path(
-        r"C:\Users\Viper\Desktop\thesis_code\results\cic_cnn\ctgan_oversampling\best_model_full.pth"
-    ),
+    Path(project_dir) / f"results/{model_name}/ctgan_oversampling/best_model_full.pth"
+    for model_name in model_names
 ]
-project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
-max_data = -1000
+max_data = args.max_data
+batch_size = args.batch_size
+
 for model_path in model_paths:
     if not model_path.exists():
         logger.error(f"Model path {model_path} does not exist.")

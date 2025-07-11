@@ -90,6 +90,32 @@ class DFDataSet:
 
         return df
 
+    def get_synthetic_train_val(self, df: pd.DataFrame):
+        df["is_synthetc"] = df.is_synthetic.apply(
+            lambda x: True if x == "True" or x is True else False
+        )
+        logger.info(
+            f"Data contains synthetic samples: {df['is_synthetic'].value_counts().to_dict()}"
+        )
+        val_df = pd.DataFrame()
+        for label in df[self.config.label_column].unique():
+            label_df = df.query(
+                f"{self.config.label_column} == '{label}' and is_synthetic != True"
+            )
+            if not label_df.empty:
+                val_df = pd.concat(
+                    [
+                        val_df,
+                        label_df.sample(
+                            frac=1 - self.config.train_ratio,
+                            random_state=self.config.random_state,
+                        ),
+                    ]
+                )
+
+        train_df = df.drop(val_df.index)
+        return train_df, val_df
+
     def get_datasets(self):
         # only keep the features and label column
         # no need to filter it here
@@ -103,28 +129,27 @@ class DFDataSet:
         logger.info(f"Label counts in the dataset: {label_counts.to_dict()}")
         # sample data for training and validation by grouping by label
         self.data["idx"] = self.data.index
-        # train_df = self.data.groupby(self.config.label_column).apply(
-        #     lambda x: x.sample(
-        #         frac=self.config.train_ratio,
-        #         random_state=self.config.random_state,
-        #         replace=False,
-        #     )
-        # )
-        train_df, validation_df = train_test_split(
-            self.data,
-            test_size=1 - self.config.train_ratio,
-            stratify=self.data[self.config.label_column],
-            random_state=self.config.random_state,
-        )
+        if not self.config.has_synthetic:
+            logger.info("Filtering out synthetic data for training and validation.")
+
+            train_df, validation_df = train_test_split(
+                self.data,
+                test_size=1 - self.config.train_ratio,
+                stratify=self.data[self.config.label_column],
+                random_state=self.config.random_state,
+            )
+        else:
+            train_df, validation_df = self.get_synthetic_train_val(self.data)
+            logger.info(
+                f'Has Synthetic Counts (Train): {train_df["is_synthetic"].value_counts().to_dict()}'
+            )
+            logger.info(
+                f'Has Synthetic Counts (Val): {validation_df["is_synthetic"].value_counts().to_dict()}'
+            )
+
         logger.info(
             f"Training dataset sampled with label counts: {train_df[self.config.label_column].value_counts().to_dict()}"
         )
-
-        # train_df = train_df.reset_index(drop=True)
-        # validation_df = self.data[~self.data.index.isin(train_df["idx"])]
-        # # remove idx from both df
-        # train_df = train_df.drop(columns=["idx"])
-        # validation_df = validation_df.drop(columns=["idx"])
 
         logger.info(
             f"Validation dataset sampled with label counts: {validation_df[self.config.label_column].value_counts().to_dict()}"

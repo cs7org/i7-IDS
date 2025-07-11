@@ -58,6 +58,10 @@ class DataSetConfig(BaseModel):
         default=42,
         description="Random state for reproducibility.",
     )
+    has_synthetic: bool = Field(
+        default=True,
+        description="Whether the dataset contains synthetic data.",
+    )
 
 
 class NNTrainerConfig(BaseModel):
