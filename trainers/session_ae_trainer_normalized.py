@@ -33,14 +33,22 @@ num_samples_per_epoch = int(os.environ.get("NUM_SAMPLES_PER_EPOCH", 10000))
 if __name__ == "__main__":
     model = DDSA_CNN()
     data_config = AdversarialDataPairConfig(
-        data_dir=data_dir, num_samples_per_epoch=num_samples_per_epoch
+        data_dir=data_dir,
+        num_samples_per_epoch=num_samples_per_epoch,
+        adversarial_type_selection_rate=[
+            ("basiciterativemethod_eps_0.1", 0.25),
+            ("fastgradientmethod_eps_0.1", 0.25),
+            ("fastgradientmethod_eps_0.01", 0.25),
+            ("fastgradientmethod_eps_0.01", 0.25),
+        ],
     )
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
+    # only 150% of num_samples_per_epoch for val
     val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
     trainer = AETrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",
-            expt_name="session_ae_experiment",
+            expt_name="session_ae_experiment_normalized",
             run_name="ddsa_cnn",
             epochs=1000,
             batch_size=1,

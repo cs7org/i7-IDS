@@ -62,6 +62,7 @@ class NNTrainer:
         self.metric_history = defaultdict(list)
         self.patience_counter = 0
         self.started_mlflow = False
+        self.epoch = 0
 
         # Create directories for results
 
@@ -186,6 +187,13 @@ class NNTrainer:
 
         return probs, loss, metrics
 
+    def at_batch_end(self):
+        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+        pass
+
+    def at_epoch_end(self):
+        pass
+
     def run_epoch(self, dataloader, is_train=True):
         epoch_loss = 0.0
         epoch_metrics = {metric: 0.0 for metric in self.metrics}
@@ -206,6 +214,7 @@ class NNTrainer:
             outputs, loss, metrics = self.forward_step(batch)
             if is_train:
                 loss.backward()
+                self.at_batch_end()
                 self.optimizer.step()
             # Update metrics
             for metric in self.metrics:
@@ -280,6 +289,7 @@ class NNTrainer:
                 outputs, val_loss, val_metrics = self.run_epoch(
                     self.val_loader, is_train=False
                 )
+            self.at_epoch_end()
             logger.info(
                 f"Epoch {epoch + 1} Training Loss: {epoch_loss:.4f}, "
                 + ", ".join(

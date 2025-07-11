@@ -4,7 +4,7 @@
 #SBATCH --partition=v100
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=ae_trainer.out
+#SBATCH --output=ae_trainer_normalized.out
 
 unset SLURM_EXPORT_ENV
 module load python
@@ -22,7 +22,7 @@ echo "Copying compressed adversarial files to TMPDIR"
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_nosampling"
+adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_normalized_nosampling"
 target_root="$DATA_DIR/adv_samples"
 
 mkdir -p "$target_root"
@@ -48,11 +48,12 @@ done
 echo "All adversarial files prepared in $target_root"
 export BATCH_SIZE=8
 
-echo "Running session AE trainer with normal data"
-python3 $HOME/i7-IDS/trainers/session_ae_trainer.py
+echo "Running session AE trainer with normalized data"
+python3 $HOME/i7-IDS/trainers/session_ae_trainer_normalized.py
 
 # Clean up: delete the target_root directory
 echo "Cleaning up $target_root"
 rm -rf "$target_root"
 echo "Cleanup complete."
+
 

@@ -8,12 +8,13 @@ class DDSA_CNN(nn.Module):
         self,
         input_channels: int = 1,
         input_size: tuple = (138, 256),
-        encoder_channels: list = [16, 32],
+        encoder_channels: list = [16, 32, 64, 128],
         bottleneck_dim: int = 128,
-        sparsity_target=0.1,
+        sparsity_lambda=1e-4,
+        sparsity_target=0.05,
     ):
         """
-        Deep Denoising Sparse Autoencoder (DDSA) - No interpolation version
+        Deep Denoising Sparse Autoencoder (DDSA)
 
         Args:
             input_channels (int): Number of input channels (1 for grayscale)
@@ -27,6 +28,7 @@ class DDSA_CNN(nn.Module):
         self.input_channels = input_channels
         self.input_size = input_size
         self.sparsity_target = sparsity_target
+        self.sparsity_lambda = sparsity_lambda
         self.bottleneck_dim = bottleneck_dim
 
         # Encoder: Conv2D layers with SAME padding to preserve spatial dimensions
@@ -127,21 +129,16 @@ class DDSA_CNN(nn.Module):
 
         return output, encoded_flat
 
-    def sparsity_loss(self, hidden_activations):
-        """
-        Calculate sparsity loss based on KL divergence
-        """
-        mean_activation = torch.mean(hidden_activations, dim=0)
-
-        # KL divergence penalty (sparsity constraint)
-        sparsity_target = self.sparsity_target
-        kl_div = sparsity_target * torch.log(
-            sparsity_target / (mean_activation + 1e-10)
-        ) + (1 - sparsity_target) * torch.log(
-            (1 - sparsity_target) / (1 - mean_activation + 1e-10)
+    def sparsity_penalty(self, encoded):
+        rho_hat = torch.mean(encoded, dim=0)
+        rho = self.sparsity_target
+        epsilon = 1e-4
+        rho_hat = torch.clamp(rho_hat, min=epsilon, max=1 - epsilon)
+        kl_divergence = rho * torch.log(rho / rho_hat) + (1 - rho) * torch.log(
+            (1 - rho) / (1 - rho_hat)
         )
-
-        return torch.sum(kl_div)
+        sparsity_penalty = torch.sum(kl_divergence)
+        return sparsity_penalty * self.sparsity_lambda
 
 
 # Example usage for your 138×256 grayscale images
@@ -158,7 +155,6 @@ if __name__ == "__main__":
         input_size=input_size,
         encoder_channels=encoder_channels,
         bottleneck_dim=bottleneck_dim,
-        sparsity_target=0.1,
     )
 
     print("DDSA Model Architecture:")

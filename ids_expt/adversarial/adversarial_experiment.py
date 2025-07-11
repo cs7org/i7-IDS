@@ -58,6 +58,9 @@ class AdversarialExperiment:
     def run(self, results_dir: Path = None):
         if results_dir is None:
             results_dir = self.output_dir
+        if not results_dir.exists():
+            results_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Results will be saved to {results_dir}")
         results_dict = {}
         logger.info("Running no attack evaluation")
 
@@ -144,6 +147,8 @@ class AdversarialExperiment:
         preserve_blank_areas=False,
         as_npz=True,
     ):
+        sample_images = []
+        saved_sample = False
         num_samples = len(dataset)
         result_dir = self.output_dir / out_folder / dataset.data_type.value
         if not result_dir.exists():
@@ -181,6 +186,11 @@ class AdversarialExperiment:
                         adversarial=adv_img.astype(np.uint8),
                         label_str=lbl_str,
                     )
+                    if not saved_sample:
+                        # Save the first sample as an image
+                        sample_images.append(input_img.astype(np.uint8))
+                        sample_images.append(adv_img.astype(np.uint8))
+                        saved_sample = True
 
         else:
             for sample_idx in tqdm(
@@ -214,7 +224,7 @@ class AdversarialExperiment:
                     adv_img[:, col_mask] = 0
                 cv2.imwrite(str(adv_img_path), adv_img)
         logger.info("Done")
-        return result_dir
+        return result_dir, sample_images if as_npz else None
 
     def _generate_tabular(self, attack, out_folder, dataset):
         result_dir = self.output_dir / out_folder / dataset.data_type.value
@@ -262,16 +272,18 @@ class AdversarialExperiment:
         logger.info(
             f"Generating adversarial examples for attack: {attack.__class__.__name__}"
         )
+        samples = None
         if is_image_dataset:
-            train_adv_dir = self._generate_image(
+            train_adv_dir, samples = self._generate_image(
                 attack, out_folder, self.train_dataset, preserve_blank_areas, as_npz
             )
             logger.info(
                 f"Train Adversarial examples saved to {self.output_dir / out_folder}"
             )
-            val_adv_dir = self._generate_image(
+            val_adv_dir, samples = self._generate_image(
                 attack, out_folder, self.test_dataset, preserve_blank_areas, as_npz
             )
+
         else:
             train_adv_dir = self._generate_tabular(
                 attack, out_folder, self.train_dataset
@@ -287,6 +299,18 @@ class AdversarialExperiment:
 
             if not copy_compressed_to.parent.exists():
                 copy_compressed_to.parent.mkdir(parents=True, exist_ok=True)
+
+            if samples is not None:
+                # Save sample images to a single npz file
+                inp = samples[0]
+                adv = samples[1]
+                inpsaved = cv2.imwrite(
+                    str(copy_compressed_to / "sample_input.png"), inp
+                )
+                advsaved = cv2.imwrite(str(copy_compressed_to / "sample_adv.png"), adv)
+            logger.info(
+                f"Sample images saved {inpsaved} to {copy_compressed_to / 'sample_input.png'} and {copy_compressed_to / 'sample_adv.png'}"
+            )
 
             # compress train adversarial examples and copy to the specified path
             shutil.make_archive(

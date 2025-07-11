@@ -1,4 +1,5 @@
 # local files
+*.npz
 res.png
 *.out
 *.zip

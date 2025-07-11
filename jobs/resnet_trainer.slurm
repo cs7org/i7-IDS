@@ -23,5 +23,7 @@ export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 export SAMPLING_METHOD="nosampling"
 
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normal_resnet.py &
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normalized_resnet.py
+# Normalized Images trainer
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normalized &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normal
+

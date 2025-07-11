@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx3080:1
+#SBATCH --gres=gpu:1
 #SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
@@ -21,8 +21,8 @@ cp $HOME/i7-IDS/data/labelled_sessions.csv $TMPDIR
 
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
-export BATCH_SIZE=64
 export SAMPLING_METHOD="nosampling"
 
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normal_mobilenet.py &
-python3 $HOME/i7-IDS/trainers/pcap_image_trainer_normalized_mobilenet.py
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normalized --batch_size 64 &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normal --batch_size 64
+

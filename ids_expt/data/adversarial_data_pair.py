@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from sklearn.model_selection import train_test_split
-from ids_expt.core.defs import DataType
-import cv2
+from ids_expt.core.defs import DataType, SamplingMethod
 import torch
 import pandas as pd
 from loguru import logger
@@ -38,6 +37,10 @@ class AdversarialDataPairConfig(BaseModel):
         default=10000,
         description="Number of samples to use per epoch for training. -1 means use all available data.",
     )
+    sampling_method: SamplingMethod = Field(
+        default=SamplingMethod.OVERSAMPLE,
+        description="Sampling method to use for selecting samples.",
+    )
 
 
 class AdversarialDataPair:
@@ -51,24 +54,70 @@ class AdversarialDataPair:
         self.adversarial_type_npz_files = {
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
+        self.label_counts = {}
 
     def load_data(self):
         # load file names
         data_dir = self.config.data_dir
         # fill adversarial type npz files for training
+        # get label counts from file name as: "{lbl_str}_{batch_idx}_{i}.npz"
         for adv_type, selection_rate in self.adversarial_type_selection_rate:
             adv_npz_files = list(data_dir.glob(f"adv_samples/{adv_type}/train/*.npz"))
-
             if not adv_npz_files:
                 logger.warning(f"No files found for adversarial type: {adv_type}")
                 continue
-            # apply this in __getitem__
-            # selected_files = self.random_state.choice(
-            #     adv_npz_files,
-            #     size=int(len(adv_npz_files) * selection_rate),
-            #     replace=False,
-            # )
-            self.adversarial_type_npz_files[adv_type].extend(adv_npz_files)
+            label_files = {}
+            for file in adv_npz_files:
+                label_str = file.stem.split("_")[:-2]
+                label_str = "_".join(label_str)
+                if label_str not in label_files:
+                    label_files[label_str] = []
+                label_files[label_str].append(file)
+            label_counts = {label: len(files) for label, files in label_files.items()}
+            logger.info(f"Label counts: {label_counts} for {adv_type}")
+            max_label_count = max(label_counts.values())
+            new_label_counts = {
+                label: len(files) for label, files in label_files.items()
+            }
+            self.adversarial_type_npz_files[adv_type] = []
+            logger.info(
+                f"Adversarial Type: {adv_type}, Selection Rate: {selection_rate}"
+            )
+
+            if self.config.sampling_method == SamplingMethod.OVERSAMPLE:
+                # oversample to max_label_count
+                for label, files in label_files.items():
+                    if len(files) < max_label_count:
+                        # oversample
+                        files = self.random_state.choice(
+                            files, size=max_label_count, replace=True
+                        )
+                    self.adversarial_type_npz_files[adv_type].extend(files)
+                    new_label_counts[label] = len(files)
+            elif self.config.sampling_method == SamplingMethod.UNDER_SAMPLE:
+                # under sample to min_label_count
+                min_label_count = min(label_counts.values())
+                for label, files in label_files.items():
+                    if len(files) > min_label_count:
+                        # under sample
+                        files = self.random_state.choice(
+                            files, size=min_label_count, replace=False
+                        )
+                    self.adversarial_type_npz_files[adv_type].extend(files)
+                    new_label_counts[label] = len(files)
+            else:
+                # do notthing
+                logger.warning(
+                    f"Unknown sampling method: {self.config.sampling_method}. Using no sampling."
+                )
+                self.adversarial_type_npz_files[adv_type].extend(adv_npz_files)
+            logger.info(
+                f"Applied {self.config.sampling_method} and now new counts: {new_label_counts}."
+            )
+            for label, count in new_label_counts.items():
+                if label not in self.label_counts:
+                    self.label_counts[label] = 0
+                self.label_counts[label] += count
 
         logger.info(
             f"Loaded adversarial files from {len(self.adversarial_type_npz_files)} types."
@@ -80,23 +129,40 @@ class AdversarialDataPair:
         )
         train_pair.data_type = DataType.TRAIN
         train_pair.adversarial_type_npz_files = self.adversarial_type_npz_files
+        train_pair.label_counts = self.label_counts
 
         # fill adversarial type npz files for validation
         self.adversarial_type_npz_files = {
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
+        self.label_counts = {}
         for adv_type, selection_rate in self.adversarial_type_selection_rate:
-            adv_npz_files = list(data_dir.glob(f"adv_samples/{adv_type}/train/*.npz"))
+            adv_npz_files = list(data_dir.glob(f"adv_samples/{adv_type}/val/*.npz"))
             if not adv_npz_files:
                 logger.warning(f"No files found for adversarial type: {adv_type}")
                 continue
             self.adversarial_type_npz_files[adv_type].extend(adv_npz_files)
+            label_files = {}
+            for file in adv_npz_files:
+                label_str = file.stem.split("_")[:-2]
+                label_str = "_".join(label_str)
+                if label_str not in label_files:
+                    label_files[label_str] = []
+                label_files[label_str].append(file)
+            label_counts = {label: len(files) for label, files in label_files.items()}
+            logger.info(f"Label counts: {label_counts} for {adv_type}")
+            self.label_counts = {
+                label: self.label_counts.get(label, 0) + count
+                for label, count in label_counts.items()
+            }
+
         # make validation data pair
         val_pair = AdversarialDataPair(
             config=self.config,
         )
         val_pair.data_type = DataType.VALIDATION
         val_pair.adversarial_type_npz_files = self.adversarial_type_npz_files
+        val_pair.label_counts = self.label_counts
 
         return train_pair, val_pair
 
@@ -125,6 +191,12 @@ class AdversarialDataPair:
         # our input will be adversarial image and target will be clean image
         target_img = input_image.copy()
         input_image = adversarial_image.copy()
+        if "fastgradientmethod" in adv_type:
+            eps = adv_type.split("_")[-1]
+            self.data_kind = f"FGSSM({eps})"
+        else:
+            eps = adv_type.split("_")[-1]
+            self.data_kind = f"BIGM({eps})"
 
         if (
             self.config.clean_selection_rate > 0
@@ -132,10 +204,11 @@ class AdversarialDataPair:
         ):
             # select clean image as input
             input_image = target_img.copy()
+            self.data_kind = "Clean"
         # normalize by 255
         input_image = input_image.astype(np.float32) / 255.0
         target_img = target_img.astype(np.float32) / 255.0
-        return input_image, target_img
+        return input_image, target_img, label
 
 
 class TorchPairDataset(torch.utils.data.Dataset):
@@ -143,12 +216,17 @@ class TorchPairDataset(torch.utils.data.Dataset):
         self.dataset = dataset
         self.config = dataset.config
         self.num_classes = -1
+        self.current_label = None
+        self.label_counts = dataset.label_counts
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        input_img, target_img = self.dataset[idx]
+        input_img, target_img, label = self.dataset[idx]
+        self.current_label = label
+
+        self.data_kind = self.dataset.data_kind
         return (
             torch.tensor(input_img, dtype=torch.float32).unsqueeze(0),
             torch.tensor(target_img, dtype=torch.float32).unsqueeze(0),

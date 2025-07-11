@@ -22,6 +22,9 @@ cp $HOME/i7-IDS/data/labelled_sessions.csv $TMPDIR
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-python3 $HOME/i7-IDS/adversarial/generate_normal.py &
-python3 $HOME/i7-IDS/adversarial/generate_normalized.py
+# python3 $HOME/i7-IDS/adversarial/generate_normal.py &
+# python3 $HOME/i7-IDS/adversarial/generate_normalized.py
+
+python3 $HOME/i7-IDS/adversarial/generate_adversarial_image.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --model_names resnet18_nosampling,mobilenet_v3_large_nosampling --image_type normal --batch_size 64 &
+python3 $HOME/i7-IDS/adversarial/generate_adversarial_image.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --model_names resnet18_normalized_nosampling,mobilenet_v3_large_normalized_nosampling --image_type normalized --batch_size 64
 
