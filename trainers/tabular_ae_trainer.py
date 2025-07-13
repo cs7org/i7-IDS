@@ -26,7 +26,7 @@ if data_dir is None:
     data_dir = Path(r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_attacks")
 else:
     data_dir = Path(data_dir)
-batch_size = int(os.environ.get("BATCH_SIZE", 4))
+batch_size = int(os.environ.get("BATCH_SIZE", 32))
 num_samples_per_epoch = int(os.environ.get("NUM_SAMPLES_PER_EPOCH", 10000))
 if __name__ == "__main__":
     model = DDSA_FFNN()

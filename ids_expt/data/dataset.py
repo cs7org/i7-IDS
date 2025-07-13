@@ -35,6 +35,7 @@ class DFDataSet:
         df = df[~np.isinf(df.select_dtypes(include=[np.number])).any(axis=1)]
         df.columns = [c.strip() for c in df.columns]
         available_labels = df[self.config.label_column].unique().tolist()
+        available_labels = sorted(available_labels)
 
         if self.config.label_column not in df.columns:
             raise ValueError(
@@ -42,6 +43,10 @@ class DFDataSet:
             )
         if not self.config.labels:
             self.config.labels = available_labels
+        else:
+            # filter the data to only include the specified labels
+            df = df[df[self.config.label_column].isin(self.config.labels)]
+            available_labels = self.config.labels
 
         if self.config.combine_attacks:
             df[self.config.label_column] = df[self.config.label_column].apply(
@@ -75,10 +80,8 @@ class DFDataSet:
                 )
                 .reset_index(drop=True)
             )
-        self.label_encoding = {
-            label: idx
-            for idx, label in enumerate(df[self.config.label_column].unique())
-        }
+
+        self.label_encoding = {label: idx for idx, label in enumerate(available_labels)}
         # label encoding to one hot encoding
         for label in self.label_encoding.keys():
             lbl = [0] * len(self.label_encoding)
@@ -131,7 +134,7 @@ class DFDataSet:
         self.data["idx"] = self.data.index
         if not self.config.has_synthetic:
             logger.info("Filtering out synthetic data for training and validation.")
-
+            self.data["is_synthetic"] = False
             train_df, validation_df = train_test_split(
                 self.data,
                 test_size=1 - self.config.train_ratio,
@@ -139,6 +142,7 @@ class DFDataSet:
                 random_state=self.config.random_state,
             )
         else:
+
             train_df, validation_df = self.get_synthetic_train_val(self.data)
             logger.info(
                 f'Has Synthetic Counts (Train): {train_df["is_synthetic"].value_counts().to_dict()}'
@@ -263,15 +267,58 @@ class CLFDataSet(TorchDataset):
         self.label_counts = class_counts
         self.X = self.data[self.config.features].values.astype(float)
         self.y = self.data[self.config.label_column].values
+        logger.info(f"Label encoding: {self.label_encoding}")
+        self.batch_size = self.num_classes * 10
+        self.curr_idx = 0
+        self.label_batch_counts = {lbl: 0 for lbl in self.label_encoding.keys()}
+        self.curr_X_batch = []
+        self.curr_y_batch = []
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        X = self.X[idx]
-        y = self.y[idx]
+
+        if self.data_type == DataType.TRAIN:
+            # prepare a batch of data with balanced classes
+            # and return the next item in the batch
+            if self.curr_idx == 0:
+                # for each label, sample a data
+                num_samples = self.batch_size // self.num_classes
+                self.curr_X_batch = []
+                self.curr_y_batch = []
+                for label, idxs in self.label_encoding.items():
+                    label_idxs = np.where(self.y == label)[0]
+                    if len(label_idxs) < num_samples:
+                        raise ValueError(
+                            f"Not enough samples for label '{label}' to create a balanced batch."
+                        )
+                    sampled_idxs = np.random.choice(
+                        label_idxs, num_samples, replace=False
+                    )
+                    self.curr_X_batch.extend(self.X[sampled_idxs])
+                    self.curr_y_batch.extend([label] * num_samples)
+                self.curr_idx = len(self.curr_X_batch)
+
+            # randomly select an index from the current batch
+            idx = np.random.randint(0, len(self.curr_X_batch))
+            X = self.curr_X_batch[idx]
+            y = self.curr_y_batch[idx]
+            self.curr_idx -= 1
+
+            self.label_batch_counts[y] += 1
+            if self.curr_idx == 0:
+                # logger.info(f"Batch completed with counts: {self.label_batch_counts}")
+                self.label_batch_counts = {
+                    lbl: 0 for lbl in self.label_batch_counts.keys()
+                }
+
+        else:
+            X = self.X[idx]
+            y = self.y[idx]
         if y not in self.label_encoding:
             raise ValueError(f"Label '{y}' not found in class encoding.")
+        lbl_str = y
         y = self.label_encoding[y]
         # convert to tensor
         X = np.array(X, dtype=np.float32)

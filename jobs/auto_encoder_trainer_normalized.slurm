@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:v100:1
-#SBATCH --partition=v100
+#SBATCH --gres=gpu:1
+#SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
 #SBATCH --output=ae_trainer_normalized.out
@@ -46,14 +46,11 @@ for subfolder in "$adversarial_root"/*; do
 done
 
 echo "All adversarial files prepared in $target_root"
-export BATCH_SIZE=8
+export BATCH_SIZE=64
 
-echo "Running session AE trainer with normalized data"
-python3 $HOME/i7-IDS/trainers/session_ae_trainer_normalized.py
+python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type unet --batch_size "$BATCH_SIZE" --data_type normalized
 
 # Clean up: delete the target_root directory
 echo "Cleaning up $target_root"
 rm -rf "$target_root"
 echo "Cleanup complete."
-
-

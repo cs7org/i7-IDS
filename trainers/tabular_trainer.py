@@ -33,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=256,
+        default=512,
         help="Batch size for adversarial attack generation.",
     )
     # model either cnn or fnn from options
@@ -43,6 +43,13 @@ if __name__ == "__main__":
         type=str,
         default="cnn",
         help="Model type to use for training. Options are 'cnn' or 'fnn'.",
+    )
+    parser.add_argument(
+        "--data_type",
+        type=str,
+        choices=["original", "synthetic"],
+        default="synthetic",
+        help="Type of data to use for training. Options are 'original' or 'synthetic'.",
     )
 
     args = parser.parse_args()
@@ -65,24 +72,33 @@ if __name__ == "__main__":
         epochs=epochs,
         batch_size=batch_size,
         learning_rate=0.0001,
+        weight_decay=1e-5,
         early_stopping_patience=500,
         log_mlflow=False,
+        optimizer="adamw",
         # best_model_metric="f1_score",
         # best_model_metric_greater=True,
     )
+    # If using synthetic data, use the CTGAN generated data.
+    if args.data_type == "synthetic":
+        csv_file = project_dir / "data/cic_ctgan_merged_synthetic_data.csv"
+        use_synthetic = True
+    else:
+        csv_file = project_dir / "data/cicflow_combined.csv"
+        use_synthetic = False
 
+    trainer_cfg.run_name = f"{model}_{'synthetic' if use_synthetic else 'original'}"
     # just initialize the object.
     train_dataset, val_dataset = DFDataSet(
         config=DataSetConfig(
-            csv_path=project_dir / "data/cic_ctgan_merged_synthetic_data.csv",
+            csv_path=csv_file,
             features=TOP_CIC_FEATURES,
             sampling_method=SamplingMethod.NONE,
             max_data=max_data,
             train_ratio=train_ratio,
+            has_synthetic=use_synthetic,
         )
     ).get_datasets()
-
-    val_dataset.data = val_dataset.data.query("is_synthetic != True")
 
     if model == "cnn":
         model = CNN1D(
@@ -92,10 +108,9 @@ if __name__ == "__main__":
             dropout_rate=0.0,
         )
     elif model == "fnn":
-
         model = FFNN(
             input_size=len(TOP_CIC_FEATURES),
-            hidden_layers=[90] * 10,
+            hidden_layers=[32, 64, 128, 256, 512, 1024, 512, 256, 128, 64, 32],
             output_size=val_dataset.data.Label.nunique(),
             use_batchnorm=True,
             dropout_rate=0.0,

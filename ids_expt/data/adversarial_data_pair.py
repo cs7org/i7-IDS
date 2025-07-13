@@ -18,13 +18,13 @@ class AdversarialDataPairConfig(BaseModel):
         default=[
             ("basiciterativemethod_eps_0.1", 0.25),
             ("fastgradientmethod_eps_0.1", 0.25),
-            ("fastgradientmethod_eps_0.01", 0.25),
+            ("basiciterativemethod_eps_0.01", 0.25),
             ("fastgradientmethod_eps_0.01", 0.25),
         ],
         description="List of tuples with adversarial type and its selection rate. ",
     )
     clean_selection_rate: float = Field(
-        default=0.5,
+        default=0.3,
         description="Selection rate for clean images",
     )
 
@@ -41,6 +41,20 @@ class AdversarialDataPairConfig(BaseModel):
         default=SamplingMethod.OVERSAMPLE,
         description="Sampling method to use for selecting samples.",
     )
+    data_labels: list[str] = Field(
+        default=[
+            "REPLAY",
+            "DNP3_INFO",
+            "DNP3_ENUMERATE",
+            "STOP_APP",
+            "NORMAL",
+            "INIT_DATA",
+            "COLD_RESTART",
+            "WARM_RESTART",
+            "DISABLE_UNSOLICITED",
+        ],
+        description="List of labels to use for training. If empty, all labels will be used.",
+    )
 
 
 class AdversarialDataPair:
@@ -55,6 +69,14 @@ class AdversarialDataPair:
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
         self.label_counts = {}
+        self.label_encoding = {
+            label: idx for idx, label in enumerate(config.data_labels)
+        }
+        for label in self.label_encoding.keys():
+            lbl = [0] * len(self.label_encoding)
+            idx = self.label_encoding[label]
+            lbl[idx] = 1
+            self.label_encoding[label] = lbl
 
     def load_data(self):
         # load file names
@@ -215,9 +237,10 @@ class TorchPairDataset(torch.utils.data.Dataset):
     def __init__(self, dataset: AdversarialDataPair):
         self.dataset = dataset
         self.config = dataset.config
-        self.num_classes = -1
+        self.num_classes = len(dataset.label_encoding)
         self.current_label = None
         self.label_counts = dataset.label_counts
+        self.label_encoding = dataset.label_encoding
 
     def __len__(self):
         return len(self.dataset)
@@ -225,11 +248,14 @@ class TorchPairDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         input_img, target_img, label = self.dataset[idx]
         self.current_label = label
+        lbl_encoding = self.dataset.label_encoding[label]
+        label_tensor = torch.tensor(lbl_encoding, dtype=torch.float)
 
         self.data_kind = self.dataset.data_kind
         return (
             torch.tensor(input_img, dtype=torch.float32).unsqueeze(0),
             torch.tensor(target_img, dtype=torch.float32).unsqueeze(0),
+            label_tensor,
         )
 
 

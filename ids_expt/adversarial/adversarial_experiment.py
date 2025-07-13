@@ -5,6 +5,7 @@ from loguru import logger
 from art.estimators.classification import PyTorchClassifier
 from ids_expt.utils.confusion_matrix import get_confusion_matrix
 from torchmetrics import F1Score
+from torchmetrics.functional.classification import multiclass_f1_score
 from pathlib import Path
 from ids_expt.data.session_image_dataset import (
     TorchImageDataset,
@@ -45,11 +46,7 @@ class AdversarialExperiment:
         self.model = model
         self.attacks = attacks
         self.input_shape = input_shape
-        self.f1_score = F1Score(
-            task="multiclass",
-            num_classes=train_dataset.data[train_dataset.config.label_column].nunique(),
-            average="macro",
-        )
+
         self.output_dir = output_dir / model_name
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.loss = loss
@@ -66,20 +63,28 @@ class AdversarialExperiment:
 
         predictions = []
         targets = []
-        for images, labels in tqdm(
-            torch.utils.data.DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-            ),
-            disable=not sys.stdout.isatty(),
-        ):
-            images = images.to(torch.float32)
-            logits, proba = self.model(images.to("cuda"))
-            preds = torch.argmax(proba, dim=1)
-            predictions.extend(preds.cpu().numpy())
-            targets.extend(labels.argmax(dim=1).cpu().numpy())
-        f1 = self.f1_score(torch.tensor(predictions), torch.tensor(targets))
+        with torch.no_grad():
+            for images, labels in tqdm(
+                torch.utils.data.DataLoader(
+                    self.test_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                ),
+                disable=not sys.stdout.isatty(),
+            ):
+                images = images.to(torch.float32)
+                logits, proba = self.model(images.to("cuda"))
+                preds = torch.argmax(proba, dim=1)
+                predictions.extend(preds.cpu().numpy())
+                targets.extend(labels.argmax(dim=1).cpu().numpy())
+        # Calculate F1 score
+
+        f1 = multiclass_f1_score(
+            torch.tensor(predictions),
+            torch.tensor(targets),
+            num_classes=self.test_dataset.num_classes,
+            average="macro",
+        )
         logger.info(f"F1 Score on Original Images: {f1:.4f}")
         cm = get_confusion_matrix(
             predictions,
@@ -114,7 +119,12 @@ class AdversarialExperiment:
                 adv_preds = torch.argmax(adv_proba, dim=1)
                 adv_predictions.extend(adv_preds.cpu().numpy())
                 targets.extend(labels.argmax(dim=1).cpu().numpy())
-            f1 = self.f1_score(torch.tensor(adv_predictions), torch.tensor(targets))
+            f1 = multiclass_f1_score(
+                torch.tensor(adv_predictions),
+                torch.tensor(targets),
+                num_classes=self.test_dataset.num_classes,
+                average="macro",
+            )
 
             logger.info(f"F1 Score on Adversarial Examples: {f1:.4f}")
             cm = get_confusion_matrix(

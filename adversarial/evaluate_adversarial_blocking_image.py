@@ -6,10 +6,15 @@ from ids_expt.data.session_image_dataset import (
     TorchImageDataset,
 )
 import torch
-from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
+from ids_expt.adversarial.adversarial_blocking import (
+    AdversarialBlockingExperiment,
+    ClfModel,
+)
+
 from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
 from art.estimators.classification import PyTorchClassifier
 import argparse
+
 
 # parser for model_names by comma separated, batch_size
 # data_dir, project_dir, image_type
@@ -19,8 +24,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--model_names",
     type=str,
-    default="resnet18_nosampling,mobilenet_v3_large_nosampling",
+    default="mobilenet_v3_large_nosampling,resnet18_nosampling",
     help="Comma-separated list of model names to use for adversarial attacks.",
+)
+parser.add_argument(
+    "--blocking_model",
+    type=str,
+    default="session_ae/unet_normal/best_model_full.pth",
 )
 parser.add_argument(
     "--image_type",
@@ -37,7 +47,7 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=128,
+    default=32,
     help="Batch size for adversarial attack generation.",
 )
 parser.add_argument(
@@ -80,8 +90,6 @@ if not project_dir.exists():
 epsilons = [float(eps.strip()) for eps in args.epsilons.split(",") if eps.strip()]
 batch_size = args.batch_size
 
-
-# !!!IMPORTANT: full model might not be usable when package is not installed
 model_paths = [
     project_dir / "results" / "image_classification" / name / "best_model_full.pth"
     for name in model_names
@@ -89,6 +97,19 @@ model_paths = [
 iterations = args.iterations
 max_data = args.max_data
 use_normalized = args.image_type.lower() == "normalized"
+
+blocking_model_path = project_dir / "results" / args.blocking_model
+if not blocking_model_path.exists():
+    logger.error(f"Blocking model path does not exist: {blocking_model_path}")
+    raise FileNotFoundError(
+        f"Blocking model path does not exist: {blocking_model_path}"
+    )
+# Load blocking model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+blocking_model = torch.load(
+    blocking_model_path, map_location=device, weights_only=False
+)
+blocking_model.eval()
 
 for model_path in model_paths:
     if not model_path.exists():
@@ -102,16 +123,9 @@ for model_path in model_paths:
         use_normalized=use_normalized,
     )
     train_ds, test_ds = DFDataSet(config=config).load_data()
-    model_path = model_path.resolve()
-    # this might fail if package is not installed
+    # Load the classification model
     logger.info(f"Loading model from: {model_path}")
-    model = torch.load(
-        model_path,
-        map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        weights_only=False,
-    )
-
-    logger.info(f"Running adversarial attacks on model: {model_path.name}")
+    model = torch.load(model_path, map_location=device, weights_only=False)
 
     iterations = 10
     input_shape = (1, config.num_pkts, config.byte_length)
@@ -149,41 +163,21 @@ for model_path in model_paths:
             for eps in epsilons
         ]
     )
-    adv = AdversarialExperiment(
+    adv = AdversarialBlockingExperiment(
         model=model,
+        blocking_model=blocking_model,
         model_name=model_path.parent.name,
         attacks=attacks,
-        train_dataset=TorchImageDataset(train_ds),
         test_dataset=TorchImageDataset(test_ds),
         input_shape=input_shape,
-        output_dir=data_dir / "adversarial_attacks" / model_path.parent.name,
+        output_dir=data_dir / "adversarial_blocking" / model_path.parent.name,
         batch_size=batch_size,
     )
     adv.run(
         results_dir=(
-            project_dir / "results" / "adversarial_attacks" / model_path.parent.name
+            project_dir / "results" / "adversarial_blocking" / model_path.parent.name
         )
     )
 
     logger.info("Adversarial attacks completed successfully.")
     logger.info("Generating adversarial attack data...")
-
-    selected_attacks = [atk for atk in attacks if atk.eps in [0.1, 0.01]]
-
-    for attack in selected_attacks:
-        logger.info(
-            f"Generating adversarial data for attack: {attack.__class__.__name__} with eps: {attack.eps}"
-        )
-        out_folder = attack.__class__.__name__.lower() + f"_eps_{attack.eps}"
-        copy_compressed_to = (
-            project_dir
-            / "results"
-            / "adversarial_attacks"
-            / model_path.parent.name
-            / out_folder
-        )
-        adv.generate(
-            attack, out_folder=out_folder, copy_compressed_to=copy_compressed_to
-        )
-
-    logger.info("Adversarial image generation completed successfully.")

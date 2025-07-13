@@ -3,53 +3,64 @@ from torch import nn
 import torch.nn.functional as F
 
 
-class CNN1D(torch.nn.Module):
+class SqueezeExcite(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        self.fc1 = nn.Linear(channels, channels // reduction, bias=False)
+        self.fc2 = nn.Linear(channels // reduction, channels, bias=False)
+
+    def forward(self, x):
+        # x: [B, C, L]
+        b, c, _ = x.size()
+        y = x.mean(-1)  # [B, C]
+        y = F.relu(self.fc1(y))  # [B, C//r]
+        y = torch.sigmoid(self.fc2(y))  # [B, C]
+        return x * y.view(b, c, 1)
+
+
+class CNN1D(nn.Module):
     def __init__(
         self,
         input_size: int = 46,
-        hidden_channels: list[int] = [16, 32, 64, 128, 256, 512, 256, 128, 64, 32, 16],
+        hidden_channels: list[int] = [64, 128, 256, 512, 256, 128, 64],
         output_size: int = 9,
         dropout_rate: float = 0.0,
         use_batchnorm: bool = True,
         kernel_size: int = 3,
     ):
-        super(CNN1D, self).__init__()
+        super().__init__()
         layers = []
-        in_channels = 1  # Treat tabular data as 1-channel sequence
-        seq_len = input_size  # Preserve sequence length through padding
-
-        # Conv blocks matching FFNN's hidden layer structure
-        for out_channels in hidden_channels:
+        in_ch = 1
+        for out_ch in hidden_channels:
             layers.append(
-                torch.nn.Conv1d(
-                    in_channels, out_channels, kernel_size, padding=kernel_size // 2
+                nn.Conv1d(
+                    in_ch, out_ch, kernel_size, padding=kernel_size // 2, bias=False
                 )
             )
             if use_batchnorm:
-                layers.append(torch.nn.BatchNorm1d(out_channels))
-            layers.append(torch.nn.ReLU())
+                layers.append(nn.BatchNorm1d(out_ch))
+            layers.append(nn.ReLU(inplace=True))
             if dropout_rate > 0:
-                layers.append(torch.nn.Dropout(dropout_rate))
-            in_channels = out_channels
-
-        # Final linear layer matching output size
-        self.final_linear = torch.nn.Sequential(
-            torch.nn.Linear(in_channels * seq_len, (in_channels * seq_len) // 2),
-            torch.nn.ReLU(),
-            torch.nn.Linear((in_channels * seq_len) // 2, output_size),
+                layers.append(nn.Dropout(dropout_rate))
+            layers.append(SqueezeExcite(out_ch))
+            in_ch = out_ch
+        self.conv = nn.Sequential(*layers)
+        flat = in_ch * input_size
+        self.fc = nn.Sequential(
+            nn.Linear(flat, flat // 2, bias=False),
+            nn.BatchNorm1d(flat // 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout_rate),
+            nn.Linear(flat // 2, output_size),
         )
+        self.softmax = nn.Softmax(dim=1)
 
-        self.softmax = torch.nn.Softmax(dim=1)
-        self.conv_layers = torch.nn.Sequential(*layers)
-
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        # Reshape input: [batch, features] -> [batch, 1, features]
-        x = x.unsqueeze(1)
-        x = self.conv_layers(x)
-
-        # Flatten for final linear layer
-        x = x.flatten(start_dim=1)
-        logits = self.final_linear(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: [B, features]
+        x = x.unsqueeze(1)  # [B, 1, L]
+        x = self.conv(x)  # [B, C, L]
+        x = x.flatten(1)  # [B, C*L]
+        logits = self.fc(x)
 
         return logits, self.softmax(logits)
 

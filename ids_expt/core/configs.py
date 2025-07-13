@@ -91,6 +91,7 @@ class NNTrainerConfig(BaseModel):
         description="List of metrics to be computed during training.",
     )
     learning_rate: float = 0.0001
+    weight_decay: float = 0.0
     early_stopping_patience: int = 50
     weighted_loss: bool = True
     log_mlflow: bool = True

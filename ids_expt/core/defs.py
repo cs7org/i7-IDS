@@ -37,6 +37,7 @@ class Optimizer(str, Enum):
     ADAM = "adam"
     SGD = "sgd"
     RMSPROP = "rmsprop"
+    ADAMW = "adamw"
 
 
 class DataType(str, Enum):

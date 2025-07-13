@@ -9,8 +9,8 @@ class DDSA_CNN(nn.Module):
         input_size: tuple = (138, 256),
         encoder_channels: list = [16, 32, 64, 128],
         bottleneck_dim: int = 128,
-        sparsity_lambda=1e-4,
-        sparsity_target=0.05,
+        sparsity_lambda=1e-5,
+        sparsity_target=0.005,
     ):
         """
         Deep Denoising Sparse Autoencoder (DDSA)

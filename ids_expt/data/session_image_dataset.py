@@ -75,6 +75,20 @@ class SessionImageDataConfig(BaseModel):
         default="flow_label",
         description="Column name in the labels file that contains the labels.",
     )
+    data_labels: list[str] = Field(
+        default=[
+            "REPLAY",
+            "DNP3_INFO",
+            "DNP3_ENUMERATE",
+            "STOP_APP",
+            "NORMAL",
+            "INIT_DATA",
+            "COLD_RESTART",
+            "WARM_RESTART",
+            "DISABLE_UNSOLICITED",
+        ],
+        description="List of labels to use for training. If empty, all labels will be used.",
+    )
 
 
 def image_normalize(image):
@@ -151,6 +165,15 @@ class DFDataSet:
             f"Final dataset size: {len(self.data_df)} entries after applying max_data limit"
         )
         labels = self.data_df["label"].unique().tolist()
+
+        # if self.config.data_labels:
+        #     logger.info(
+        #         f"Filtering dataset to only include specified labels: {self.config.data_labels}"
+        #     )
+        #     labels = self.config.data_labels
+        # else:
+        #     labels.sort()
+        logger.info(f"Using labels: {labels}")
         self.label_encoding = {label: idx for idx, label in enumerate(labels)}
         for label in self.label_encoding.keys():
             lbl = [0] * len(self.label_encoding)

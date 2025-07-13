@@ -105,6 +105,7 @@ if __name__ == "__main__":
     model = ImageClfModel(
         in_channel=1,
         num_classes=len(train_ds.label_encoding),
+        backbone=args.backbone,
     )
     cv2.imwrite(str(expt_dir / f"{run_name}.png"), (img * 255).astype(np.uint8))
     # Initialize the trainer

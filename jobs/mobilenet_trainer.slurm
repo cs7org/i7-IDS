@@ -23,6 +23,6 @@ export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 export SAMPLING_METHOD="nosampling"
 
-python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normalized --batch_size 64 &
-python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normal --batch_size 64
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normalized --batch_size 128 &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normal --batch_size 128
 

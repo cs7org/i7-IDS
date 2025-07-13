@@ -17,4 +17,6 @@ pip install -e .
 export PROJECT_DIR="$HOME/i7-IDS"
 
 python3 $HOME/i7-IDS/trainers/tabular_trainer.py --project_dir $PROJECT_DIR --model fnn &
-python3 $HOME/i7-IDS/trainers/tabular_trainer.py --project_dir $PROJECT_DIR --model cnn
+python3 $HOME/i7-IDS/trainers/tabular_trainer.py --project_dir $PROJECT_DIR --model cnn &
+python3 $HOME/i7-IDS/trainers/tabular_trainer.py --project_dir $PROJECT_DIR --model fnn --data_type original &
+python3 $HOME/i7-IDS/trainers/tabular_trainer.py --project_dir $PROJECT_DIR --model cnn --data_type original

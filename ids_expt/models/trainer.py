@@ -16,6 +16,21 @@ import mlflow
 import sys
 
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2.0, weight=None):
+        super().__init__()
+        self.gamma = gamma
+        self.weight = weight
+
+    def forward(self, logits, targets):
+        ce = torch.nn.functional.cross_entropy(
+            logits, targets, weight=self.weight, reduction="none"
+        )
+        p_t = torch.exp(-ce)
+        loss = ((1 - p_t) ** self.gamma * ce).mean()
+        return loss
+
+
 class NNTrainer:
     def __init__(
         self,
@@ -48,11 +63,22 @@ class NNTrainer:
 
         if self.config.optimizer == Optimizer.ADAM:
             self.optimizer = torch.optim.Adam(
-                model.parameters(), lr=config.learning_rate
+                model.parameters(),
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay,
             )
         elif self.config.optimizer == Optimizer.SGD:
             self.optimizer = torch.optim.SGD(
-                model.parameters(), lr=config.learning_rate, momentum=0.9
+                model.parameters(),
+                lr=config.learning_rate,
+                momentum=0.9,
+                weight_decay=config.weight_decay,
+            )
+        elif self.config.optimizer == Optimizer.ADAMW:
+            self.optimizer = torch.optim.AdamW(
+                model.parameters(),
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay,
             )
         else:
             raise ValueError(f"Unsupported optimizer: {self.config.optimizer}")
@@ -64,7 +90,17 @@ class NNTrainer:
         self.started_mlflow = False
         self.epoch = 0
 
-        # Create directories for results
+        num_classes = train_dataset.num_classes
+        batch_size = config.batch_size
+        if batch_size % num_classes != 0:
+            logger.warning(
+                f"Batch size {batch_size} is not divisible by number of classes {num_classes}. "
+                "This may lead to imbalanced batches."
+            )
+            # increase it to the next multiple of num_classes
+            config.batch_size = (batch_size // num_classes + 1) * num_classes
+
+        train_dataset.batch_size = config.batch_size
 
         # write scaler if it exists
         if hasattr(train_dataset.dataset, "scaler") and train_dataset.dataset.scaler:
@@ -184,6 +220,11 @@ class NNTrainer:
         # Update metrics
         self.metrics.update(probs.argmax(dim=1), labels.argmax(dim=1))
         metrics = self.metrics.compute()
+        # itemize
+        metrics = {
+            k: v.item() if isinstance(v, torch.Tensor) else v
+            for k, v in metrics.items()
+        }
 
         return probs, loss, metrics
 
@@ -197,6 +238,7 @@ class NNTrainer:
     def run_epoch(self, dataloader, is_train=True):
         epoch_loss = 0.0
         epoch_metrics = {metric: 0.0 for metric in self.metrics}
+        self.metrics.reset()
         epoch_metrics["loss"] = 0.0
         pbar = tqdm(
             dataloader,
@@ -216,9 +258,11 @@ class NNTrainer:
                 loss.backward()
                 self.at_batch_end()
                 self.optimizer.step()
-            # Update metrics
-            for metric in self.metrics:
-                epoch_metrics[metric] += metrics[metric].item()
+            # if any metric in metrics is not in self.metrics, update self.metrics
+            for metric, value in metrics.items():
+                if metric not in epoch_metrics:
+                    epoch_metrics[metric] = 0.0
+                epoch_metrics[metric] += value
 
             # add loss as first metric
             epoch_metrics["loss"] += loss.item()
@@ -238,12 +282,12 @@ class NNTrainer:
                     "loss": loss.item(),
                     **{
                         metric: epoch_metrics[metric] / (i + 1)
-                        for metric in self.metrics
+                        for metric in epoch_metrics.keys()
                     },
                 }
             )
         epoch_loss /= len(dataloader)
-        for metric in self.metrics:
+        for metric in metrics:
             epoch_metrics[metric] /= len(dataloader)
         epoch_metrics["loss"] = epoch_loss
         return outputs, epoch_loss, epoch_metrics
@@ -290,16 +334,17 @@ class NNTrainer:
                     self.val_loader, is_train=False
                 )
             self.at_epoch_end()
+            metrics = val_metrics.keys()
             logger.info(
                 f"Epoch {epoch + 1} Training Loss: {epoch_loss:.4f}, "
                 + ", ".join(
-                    f"{metric}: {epoch_metrics[metric]:.4f}" for metric in self.metrics
+                    f"{metric}: {epoch_metrics[metric]:.4f}" for metric in metrics
                 )
             )
             logger.info(
                 f"Epoch {epoch + 1} Validation Loss: {val_loss:.4f}, "
                 + ", ".join(
-                    f"{metric}: {val_metrics[metric]:.4f}" for metric in self.metrics
+                    f"{metric}: {val_metrics[metric]:.4f}" for metric in metrics
                 )
             )
             self.system_usage()
@@ -319,7 +364,7 @@ class NNTrainer:
                     self.config.run_dir
                     / self.config.best_model_name.replace(".pth", "_full.pth"),
                 )
-                logger.info(f"Best model saved at {best_model_path}")
+                logger.info(f"Best model at {epoch} saved at {best_model_path}")
                 self.patience_counter = 0
             else:
                 self.patience_counter += 1
@@ -374,21 +419,22 @@ class NNTrainer:
         # Save metrics to file: epoch, train_loss, train_metrics, val_loss, val_metrics
         metrics_file = self.config.run_dir / self.config.metric_file
         # if it is a first epoch and the file exists, write header
+        metrics = val_metrics.keys()
         if epoch == 0:
             with open(metrics_file, "w") as f:
                 header = (
                     "epoch,train_loss,"
-                    + ",".join(self.metrics)
+                    + ",".join(metrics)
                     + ",val_loss,"
-                    + ",".join(f"val_{metric}" for metric in self.metrics)
+                    + ",".join(f"val_{metric}" for metric in metrics)
                 )
                 f.write(header + "\n")
         with open(metrics_file, "a") as f:
             f.write(
                 f"{epoch + 1},{train_loss},"
-                + ",".join(f"{train_metrics[metric]:.4f}" for metric in self.metrics)
+                + ",".join(f"{train_metrics[metric]:.4f}" for metric in metrics)
                 + f",{val_loss},"
-                + ",".join(f"{val_metrics[metric]:.4f}" for metric in self.metrics)
+                + ",".join(f"{val_metrics[metric]:.4f}" for metric in metrics)
                 + "\n"
             )
         logger.info(f"Metrics logged to {metrics_file}")
@@ -404,10 +450,10 @@ class NNTrainer:
                 logger.info("MLflow run started.")
             self.started_mlflow = True
             mlflow.log_metric("train_loss", train_loss, step=epoch)
-            for metric in self.metrics:
+            for metric in metrics:
                 mlflow.log_metric(f"train_{metric}", train_metrics[metric], step=epoch)
             mlflow.log_metric("val_loss", val_loss, step=epoch)
-            for metric in self.metrics:
+            for metric in metrics:
                 mlflow.log_metric(f"val_{metric}", val_metrics[metric], step=epoch)
             logger.info("Metrics logged to MLflow.")
 

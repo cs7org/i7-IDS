@@ -1,12 +1,11 @@
-from ids_expt.models.cnn_ae import DDSA_CNN
-from ids_expt.models.resnet_vae import VAE
+from ids_expt.models.image_model import ImageClfModel
 from ids_expt.data.adversarial_data_pair import (
     AdversarialDataPairConfig,
     TorchPairDataset,
     AdversarialDataPair,
 )
 from ids_expt.models.unet import UnetAE
-from ids_expt.models.trainer_ae import AETrainer, NNTrainerConfig
+from ids_expt.models.trainer_adv import AdvTrainer, NNTrainerConfig
 import torch
 from pathlib import Path
 import os
@@ -29,11 +28,10 @@ parser.add_argument(
     help="Directory containing the dataset.",
 )
 parser.add_argument(
-    "--ae_type",
+    "--backbone",
     type=str,
-    choices=["ddsa", "vae", "unet"],
-    default="ddsa",
-    help="Type of autoencoder to use. Options are 'ddsa' or 'cnn'.",
+    default="resnet18",
+    help="Backbone model to use for image classification.",
 )
 parser.add_argument(
     "--batch_size",
@@ -58,66 +56,41 @@ args = parser.parse_args()
 project_dir = Path(args.project_dir)
 data_dir = Path(args.data_dir)
 num_samples_per_epoch = args.num_samples_per_epoch
-ae_type = args.ae_type.lower()
-
+normalized_str = "_normalized_" if args.data_type == "normalized" else "_"
+sampling_method = "nosampling"
 
 if __name__ == "__main__":
-    clf_model = None
-    if ae_type == "ddsa":
-        model = DDSA_CNN()
-        logger.info("Using DDSA_CNN model for autoencoder.")
-    elif ae_type == "vae":
-        model = VAE()
-        logger.info("Using VAE model for autoencoder.")
-    elif ae_type == "unet":
-        model = UnetAE(
-            encoder_name="resnet34",
-            encoder_weights="imagenet",
-            activation="sigmoid",
-        )
-        logger.info("Using UnetAE model for autoencoder.")
-    else:
-        logger.error(f"Invalid ae_type: {ae_type}. Choose 'ddsa' or 'vae'.")
-        exit(1)
-
-    norm_ = "_normalized_" if args.data_type == "normalized" else "_"
-    clf_model_path = (
-        project_dir
-        / f"results/image_classification/resnet18{norm_}nosampling/best_model_full.pth"
-    )
-    clf_model = torch.load(
-        clf_model_path,
-        weights_only=False,
-        map_location="cuda" if torch.cuda.is_available() else "cpu",
-    )
-    clf_model.eval()
-    logger.info(f"Loaded classifier model from {clf_model_path}")
-    # set all parameters to not require gradients
-    for param in clf_model.parameters():
-        param.requires_grad = False
-
-    logger.info(
-        f"Using device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu'}"
-    )
-
     data_config = AdversarialDataPairConfig(
         data_dir=data_dir,
         num_samples_per_epoch=num_samples_per_epoch,
         clean_selection_rate=0.5,
     )
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
+
+    run_name = f"{args.backbone}{normalized_str}{sampling_method}"
+    model = ImageClfModel(
+        in_channel=1,
+        num_classes=len(train_ds.label_encoding),
+        backbone=args.backbone,
+    )
+
+    norm_ = "_normalized_" if args.data_type == "normalized" else "_"
+
+    logger.info(
+        f"Using device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu'}"
+    )
+
     val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
-    trainer = AETrainer(
+    trainer = AdvTrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",
-            expt_name="session_ae",
-            run_name=f"{ae_type}_{args.data_type}",
+            expt_name="image_classification",
+            run_name=run_name + "_adv",
             epochs=1000,
             batch_size=args.batch_size,
             learning_rate=0.001,
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=100,
-            metrics=[],
             weighted_loss=False,
             log_mlflow=False,
             weight_decay=1e-5,
@@ -126,10 +99,6 @@ if __name__ == "__main__":
         model=model,
         train_dataset=TorchPairDataset(train_ds),
         val_dataset=TorchPairDataset(val_ds),
-        criterion=torch.nn.L1Loss(reduction="mean"),
-        ae_type=ae_type,
-        clf_model=clf_model,
-        clf_loss_weight=0.9,
     )
     trainer.train()
     trainer.plot_metrics()

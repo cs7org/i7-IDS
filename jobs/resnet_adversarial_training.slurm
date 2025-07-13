@@ -1,19 +1,17 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx2080ti:1
+#SBATCH --gres=gpu:1
 #SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=ae_trainer.out
+#SBATCH --output=resnet_adv.out
 
 unset SLURM_EXPORT_ENV
 module load python
 conda activate pytorch
-
 # export proxy
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80
-
 pip install -e .
 
 echo "Copying compressed adversarial files to TMPDIR"
@@ -45,11 +43,6 @@ for subfolder in "$adversarial_root"/*; do
     fi
 done
 
-echo "All adversarial files prepared in $target_root"
-export BATCH_SIZE=64
-python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type unet --batch_size "$BATCH_SIZE" --data_type normal
+python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normal &
+python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normal
 
-# Clean up: delete the target_root directory
-echo "Cleaning up $target_root"
-rm -rf "$target_root"
-echo "Cleanup complete."
