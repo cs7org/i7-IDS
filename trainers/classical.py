@@ -26,6 +26,9 @@ from ids_expt.data.dataset import (
 from ids_expt.core.defs import TOP_FEATURES, TOP_CIC_FEATURES
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from tabpfn import TabPFNClassifier
+from tabpfn_extensions.many_class import ManyClassClassifier
+import numpy as np
 
 
 def plot_classification_report(y_true, y_pred, labels, title, save_path):
@@ -45,11 +48,23 @@ def plot_classification_report(y_true, y_pred, labels, title, save_path):
 if __name__ == "__main__":
     results = []
     output_dir = Path("reports")
+    data_path = Path(r"C:\Users\Viper\Desktop\thesis_code\data")
+    labels = [
+        "REPLAY",
+        "DNP3_INFO",
+        "DNP3_ENUMERATE",
+        "STOP_APP",
+        "NORMAL",
+        "INIT_DATA",
+        "COLD_RESTART",
+        "WARM_RESTART",
+        "DISABLE_UNSOLICITED",
+    ]
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for data_path in [
-        Path("E:/MSc Works/IDS/data/cicflow_combined.csv"),
-        Path(r"E:\MSc Works\IDS\data\cic_ctgan_merged_synthetic_data.csv"),
+        data_path / "cic_ctgan_merged_synthetic_data.csv",
+        data_path / "cicflow_combined.csv",
     ]:
         logger.info(f"Processing data from: {data_path}")
         feature_set = (
@@ -63,6 +78,7 @@ if __name__ == "__main__":
                     max_data=-1,
                     train_ratio=0.75,
                     features=feature_set,
+                    labels=labels,
                 )
             ).get_datasets()
             X_train = train_dataset.data[feature_set]
@@ -72,6 +88,7 @@ if __name__ == "__main__":
 
         else:
             df_gen = pd.read_csv(data_path, low_memory=False)
+            df_gen = df_gen.query("Label in @labels")
             df_gen.columns = df_gen.columns.str.strip()
             df_orig = df_gen.query("is_synthetic!=True")
             df_train, df_test = train_test_split(
@@ -93,6 +110,12 @@ if __name__ == "__main__":
                         [df_train, additional_samples], ignore_index=True
                     )
 
+            df_train = df_train[
+                ~np.isinf(df_train.select_dtypes(include=[np.number])).any(axis=1)
+            ]
+            df_test = df_test[
+                ~np.isinf(df_test.select_dtypes(include=[np.number])).any(axis=1)
+            ]
             df_test = df_test[TOP_CIC_FEATURES + ["Label"]]
             df_train = df_train[TOP_CIC_FEATURES + ["Label"]]
             scaler = StandardScaler()
@@ -108,8 +131,14 @@ if __name__ == "__main__":
             df_test.to_csv("cic_merged_test_data.csv", index=False)
 
         unique_labels = sorted(y_val.unique())
+        base_clf = TabPFNClassifier(ignore_pretraining_limits=True, device="cuda")
+        many_clf = ManyClassClassifier(
+            base_clf, alphabet_size=base_clf.max_num_classes_
+        )
+        # TabPFNClassifier(ignore_pretraining_limits=True)
 
         for model in [
+            many_clf,
             RandomForestClassifier(n_estimators=100, random_state=42),
             GaussianNB(),
             DecisionTreeClassifier(random_state=42),
@@ -125,9 +154,9 @@ if __name__ == "__main__":
             # predictions = model.predict(X_val)
 
             acc = accuracy_score(y_val, predictions)
-            f1 = f1_score(y_val, predictions, average="weighted")
-            prec = precision_score(y_val, predictions, average="weighted")
-            rec = recall_score(y_val, predictions, average="weighted")
+            f1 = f1_score(y_val, predictions, average="macro")
+            prec = precision_score(y_val, predictions, average="macro")
+            rec = recall_score(y_val, predictions, average="macro")
 
             logger.info(f"{model_name}:\n{classification_report(y_val, predictions)}")
 
