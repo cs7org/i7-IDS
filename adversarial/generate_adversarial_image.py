@@ -111,7 +111,7 @@ for model_path in model_paths:
         weights_only=False,
     )
 
-    logger.info(f"Running adversarial attacks on model: {model_path.name}")
+    logger.info(f"Running adversarial attacks on model: {model_path.parent.name}")
 
     iterations = 10
     input_shape = (1, config.num_pkts, config.byte_length)

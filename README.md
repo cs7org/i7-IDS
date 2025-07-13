@@ -46,4 +46,5 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 * Dataset for tabular data: `ids_expt\data\dataset.py`.
 * Dataset for session image data: `ids_expt\data\session_image_dataset.py`.
 * Trainer: `\ids_expt\models\trainer.py`. A single trainer to train all models.
+* `pip install "tabpfn-extensions[all] @ git+https://github.com/PriorLabs/tabpfn-extensions.git"`
 

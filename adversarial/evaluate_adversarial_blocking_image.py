@@ -33,6 +33,12 @@ parser.add_argument(
     default="session_ae/unet_normal/best_model_full.pth",
 )
 parser.add_argument(
+    "--adv_trained_model",
+    type=str,
+    default="resnet18_nosampling_adv/best_model_full.pth",
+    help="Name of the adversarially trained model to use for blocking.",
+)
+parser.add_argument(
     "--image_type",
     type=str,
     choices=["normal", "normalized"],
@@ -94,6 +100,9 @@ model_paths = [
     project_dir / "results" / "image_classification" / name / "best_model_full.pth"
     for name in model_names
 ]
+adv_trained_model_path = (
+    project_dir / "results" / "image_classification" / args.adv_trained_model
+)
 iterations = args.iterations
 max_data = args.max_data
 use_normalized = args.image_type.lower() == "normalized"
@@ -110,6 +119,19 @@ blocking_model = torch.load(
     blocking_model_path, map_location=device, weights_only=False
 )
 blocking_model.eval()
+
+if not adv_trained_model_path.exists():
+    logger.error(
+        f"Adversarially trained model path does not exist: {adv_trained_model_path}"
+    )
+    adv_trained_model = None
+else:
+    logger.info(f"Loading adversarially trained model from: {adv_trained_model_path}")
+    adv_trained_model = torch.load(
+        adv_trained_model_path, map_location=device, weights_only=False
+    )
+    adv_trained_model.eval()
+
 
 for model_path in model_paths:
     if not model_path.exists():
@@ -172,6 +194,7 @@ for model_path in model_paths:
         input_shape=input_shape,
         output_dir=data_dir / "adversarial_blocking" / model_path.parent.name,
         batch_size=batch_size,
+        adv_trained_model=adv_trained_model,
     )
     adv.run(
         results_dir=(
@@ -180,4 +203,3 @@ for model_path in model_paths:
     )
 
     logger.info("Adversarial attacks completed successfully.")
-    logger.info("Generating adversarial attack data...")

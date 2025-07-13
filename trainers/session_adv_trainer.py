@@ -11,6 +11,8 @@ from pathlib import Path
 import os
 from loguru import logger
 import argparse
+import cv2
+import numpy as np
 
 
 # Argument parser for project dir, data dir, ae_type, batch_size, num_samples_per_epoch
@@ -81,6 +83,11 @@ if __name__ == "__main__":
     )
 
     val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
+    expt_dir = project_dir / "results" / "image_classification" / f"{run_name}_adv"
+    inp, out, lbl = val_ds[0]
+    img = np.hstack([inp, out])
+    cv2.imwrite(str(expt_dir / f"{run_name}.png"), (img * 255).astype(np.uint8))
+
     trainer = AdvTrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",

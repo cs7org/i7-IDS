@@ -49,6 +49,7 @@ if __name__ == "__main__":
     results = []
     output_dir = Path("reports")
     data_path = Path(r"C:\Users\Viper\Desktop\thesis_code\data")
+    data_path = Path("/home/hpc/iwi7/iwi7101h/i7-IDS/data")
     labels = [
         "REPLAY",
         "DNP3_INFO",
@@ -131,14 +132,12 @@ if __name__ == "__main__":
             df_test.to_csv("cic_merged_test_data.csv", index=False)
 
         unique_labels = sorted(y_val.unique())
-        base_clf = TabPFNClassifier(ignore_pretraining_limits=True, device="cuda")
-        many_clf = ManyClassClassifier(
-            base_clf, alphabet_size=base_clf.max_num_classes_
-        )
+        base_clf = TabPFNClassifier(ignore_pretraining_limits=True, device="cpu")
+        # many_clf = ManyClassClassifier(base_clf, alphabet_size=10)
         # TabPFNClassifier(ignore_pretraining_limits=True)
 
         for model in [
-            many_clf,
+            base_clf,
             RandomForestClassifier(n_estimators=100, random_state=42),
             GaussianNB(),
             DecisionTreeClassifier(random_state=42),

@@ -27,6 +27,7 @@ class ClfModel(torch.nn.Module):
 
 
 class AdversarialBlockingExperiment:
+
     def __init__(
         self,
         model: torch.nn.Module,
@@ -34,6 +35,7 @@ class AdversarialBlockingExperiment:
         model_name: str,
         attacks: list[ProjectedGradientDescent],
         test_dataset: TorchImageDataset,
+        adv_trained_model: torch.nn.Module = None,
         input_shape=(1, 6 * 32, 8 * 32),
         loss=torch.nn.CrossEntropyLoss(),
         output_dir: Path = Path(
@@ -54,6 +56,9 @@ class AdversarialBlockingExperiment:
         self.model.to(self.device)
         self.blocking_model.to(self.device)
         self.blocking_model.eval()
+        self.adv_trained_model = adv_trained_model
+        if self.adv_trained_model is not None:
+            self.adv_trained_model.to(self.device).eval()
 
     def run(self, results_dir: Path = None):
         if results_dir is None:
@@ -66,6 +71,7 @@ class AdversarialBlockingExperiment:
 
         predictions = []
         blocked_predictions = []
+        adv_trained_predictions = []
         targets = []
         mse_losses = []
         with torch.no_grad():
@@ -84,6 +90,12 @@ class AdversarialBlockingExperiment:
                 )
                 logits, proba = self.model(images.to("cuda"))
                 recon_logits, recon_proba = self.model(recon_image)
+                if self.adv_trained_model is not None:
+                    adv_logits, adv_proba = self.adv_trained_model(
+                        images.to(self.device)
+                    )
+                    adv_trained_preds = torch.argmax(adv_proba, dim=1)
+                    adv_trained_predictions.extend(adv_trained_preds.cpu().numpy())
                 preds = torch.argmax(proba, dim=1)
                 recon_preds = torch.argmax(recon_proba, dim=1)
 
@@ -105,6 +117,19 @@ class AdversarialBlockingExperiment:
             num_classes=self.test_dataset.num_classes,
             average="macro",
         )
+        if self.adv_trained_model is not None:
+            adv_trained_f1 = multiclass_f1_score(
+                torch.tensor(adv_trained_predictions),
+                torch.tensor(targets),
+                num_classes=self.test_dataset.num_classes,
+                average="macro",
+            )
+            cm_adv = get_confusion_matrix(
+                adv_trained_predictions,
+                targets,
+                self.test_dataset.label_encoding,
+                out_file=results_dir / "adv_trained.png",
+            )
         cm = get_confusion_matrix(
             predictions,
             targets,
@@ -117,13 +142,17 @@ class AdversarialBlockingExperiment:
             self.test_dataset.label_encoding,
             out_file=results_dir / "no_attack_blocked.png",
         )
-        results_dict["no_attack"] = {
+        res_dict = {
             "f1_score": non_blocking_f1.item(),
             "blocked_f1_score": blocking_f1.item(),
             "mse_loss": mse_loss.item(),
             "confusion_matrix": cm.tolist(),
             "blocked_confusion_matrix": cm2.tolist(),
         }
+        if self.adv_trained_model is not None:
+            res_dict["adv_trained_f1_score"] = adv_trained_f1.item()
+            res_dict["adv_trained_confusion_matrix"] = cm_adv.tolist()
+        results_dict["no_attack"] = res_dict
         logger.info(
             f"No attack F1 Score: {non_blocking_f1.item()}, "
             f"Blocked F1 Score: {blocking_f1.item()}"
@@ -136,6 +165,7 @@ class AdversarialBlockingExperiment:
             logger.info(f"Running attack: {attack_name}")
             predictions = []
             blocked_predictions = []
+            adv_trained_predictions = []
             targets = []
             mse_losses = []
             for images, labels in tqdm(
@@ -154,6 +184,12 @@ class AdversarialBlockingExperiment:
                     recon_image, images.to(self.device)
                 )
                 mse_losses.append(mse_loss.item())
+                if self.adv_trained_model is not None:
+                    adv_trained_logits, adv_trained_proba = self.adv_trained_model(
+                        adv_images.to(self.device)
+                    )
+                    adv_trained_preds = torch.argmax(adv_trained_proba, dim=1)
+                    adv_trained_predictions.extend(adv_trained_preds.cpu().numpy())
 
                 logits, proba = self.model(adv_images.to(self.device))
                 recon_logits, recon_proba = self.model(recon_image)
@@ -177,6 +213,19 @@ class AdversarialBlockingExperiment:
                 num_classes=self.test_dataset.num_classes,
                 average="macro",
             )
+            if self.adv_trained_model is not None:
+                adv_trained_f1 = multiclass_f1_score(
+                    torch.tensor(adv_trained_predictions),
+                    torch.tensor(targets),
+                    num_classes=self.test_dataset.num_classes,
+                    average="macro",
+                )
+                cm_adv = get_confusion_matrix(
+                    adv_trained_predictions,
+                    targets,
+                    self.test_dataset.label_encoding,
+                    out_file=results_dir / f"{attack_name}_adv_trained.png",
+                )
             atk_name = attack.__class__.__name__ + f"_eps_{attack.eps}"
             cm = get_confusion_matrix(
                 predictions,
@@ -190,13 +239,17 @@ class AdversarialBlockingExperiment:
                 self.test_dataset.label_encoding,
                 out_file=results_dir / f"{atk_name}_blocked.png",
             )
-            results_dict[attack_name] = {
+            res_dict = {
                 "f1_score": non_blocking_f1.item(),
                 "blocked_f1_score": blocking_f1.item(),
                 "confusion_matrix": cm.tolist(),
                 "blocked_confusion_matrix": cm2.tolist(),
                 "mse_loss": mse_loss.item(),
             }
+            if self.adv_trained_model is not None:
+                res_dict["adv_trained_f1_score"] = adv_trained_f1.item()
+                res_dict["adv_trained_confusion_matrix"] = cm_adv.tolist()
+            results_dict[attack_name] = res_dict
             logger.info(
                 f"{atk_name} F1 Score: {non_blocking_f1.item()}, "
                 f"Blocked F1 Score: {blocking_f1.item()}"

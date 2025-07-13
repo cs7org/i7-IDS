@@ -189,7 +189,10 @@ class AdversarialExperiment:
                     input_img = images[i].reshape(self.input_shape[1:]).numpy() * 255
                     lbl_str = lbls_str[i]
                     # Save batch to npz file
-                    adv_data_path = result_dir / f"{lbl_str}_{batch_idx}_{i}.npz"
+                    adv_data_path = (
+                        result_dir
+                        / f"{lbl_str}_{batch_idx}_{i}_{self.output_dir.name}.npz"
+                    )
                     np.savez_compressed(
                         adv_data_path,
                         inputs=input_img.astype(np.uint8),
