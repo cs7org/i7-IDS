@@ -31,7 +31,7 @@ class AETrainer(NNTrainer):
     def at_epoch_end(self):
         # plot one image of all labels
         import numpy as np
-        from ids_expt.utils.vis import subplot_images
+        from ids_expt.utils.vis import subplot_images, plt
 
         self.model.eval()
         with torch.no_grad():
@@ -98,7 +98,7 @@ class AETrainer(NNTrainer):
             out_dir = self.config.run_dir / "progress_images"
             out_dir.mkdir(parents=True, exist_ok=True)
             fig.savefig(out_dir / f"epoch_{self.epoch}.png")
-            fig.close()
+            plt.close(fig)
 
             logger.info(
                 f"Saved reconstruction images for epoch {self.epoch} to {out_dir / f'epoch_{self.epoch}.png'}"

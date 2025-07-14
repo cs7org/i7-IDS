@@ -64,6 +64,13 @@ parser.add_argument(
     default=10,
     help="Number of iterations for iterative adversarial attacks.",
 )
+# flag to run adv or not
+parser.add_argument(
+    "--run_adv",
+    action="store_true",
+    help="Flag to indicate whether to run adversarial attacks or not.",
+)
+
 
 args = parser.parse_args()
 
@@ -115,11 +122,13 @@ for model_path in model_paths:
 
     iterations = 10
     input_shape = (1, config.num_pkts, config.byte_length)
+    clf_model = ClfModel(model)
+    clf_model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     attacks = [
         FastGradientMethod(
             estimator=PyTorchClassifier(
-                model=ClfModel(model),
+                model=clf_model,
                 loss=torch.nn.CrossEntropyLoss(),
                 clip_values=(0, 1),
                 input_shape=input_shape,
@@ -127,6 +136,7 @@ for model_path in model_paths:
                 optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
             ),
             eps=eps,
+            batch_size=batch_size,
         )
         for eps in epsilons
     ]
@@ -134,7 +144,7 @@ for model_path in model_paths:
         [
             BasicIterativeMethod(
                 estimator=PyTorchClassifier(
-                    model=ClfModel(model),
+                    model=clf_model,
                     loss=torch.nn.CrossEntropyLoss(),
                     clip_values=(0, 1),
                     input_shape=input_shape,
@@ -145,6 +155,7 @@ for model_path in model_paths:
                 eps_step=eps / 10,
                 max_iter=iterations,
                 verbose=False,
+                batch_size=batch_size,
             )
             for eps in epsilons
         ]
@@ -159,13 +170,16 @@ for model_path in model_paths:
         output_dir=data_dir / "adversarial_attacks" / model_path.parent.name,
         batch_size=batch_size,
     )
-    adv.run(
-        results_dir=(
-            project_dir / "results" / "adversarial_attacks" / model_path.parent.name
-        )
-    )
 
-    logger.info("Adversarial attacks completed successfully.")
+    if not args.run_adv:
+        logger.info("Skipping adversarial attack evaluation as --run_adv is not set.")
+    else:
+        adv.run(
+            results_dir=(
+                project_dir / "results" / "adversarial_attacks" / model_path.parent.name
+            )
+        )
+        logger.info("Adversarial attacks completed successfully.")
     logger.info("Generating adversarial attack data...")
 
     selected_attacks = [atk for atk in attacks if atk.eps in [0.1, 0.01]]

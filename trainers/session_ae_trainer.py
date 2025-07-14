@@ -54,6 +54,12 @@ parser.add_argument(
     default="normal",
     help="Type of data to use for training. 'normal' for raw images, 'normalized' for normalized images.",
 )
+parser.add_argument(
+    "--num_workers",
+    type=int,
+    default=os.cpu_count(),
+    help="Number of workers for data loading. Default is the number of CPU cores.",
+)
 args = parser.parse_args()
 project_dir = Path(args.project_dir)
 data_dir = Path(args.data_dir)
@@ -107,6 +113,8 @@ if __name__ == "__main__":
     )
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
     val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
+    num_workers = max(args.num_workers // 2, 1)
+    logger.info(f"Number of workers for data loading: {num_workers}")
     trainer = AETrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",
@@ -122,6 +130,7 @@ if __name__ == "__main__":
             log_mlflow=False,
             weight_decay=1e-5,
             optimizer="adamw",
+            number_of_workers=num_workers,
         ),
         model=model,
         train_dataset=TorchPairDataset(train_ds),

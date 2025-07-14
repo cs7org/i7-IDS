@@ -36,7 +36,7 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 
 ## Debug on HPC
 * `salloc.tinygpu --gres=gpu:1 --time=01:00:00`
-* `srun --jobid=1121191 --overlap --pty /bin/bash -l`
+* `srun --jobid=1121838 --overlap --pty /bin/bash -l`
 * `tqdm` should be disabled in HPC.
 * Quota: `shownicerquota.pl`
 

@@ -90,8 +90,10 @@ class AdversarialDataPair:
                 continue
             label_files = {}
             for file in adv_npz_files:
-                label_str = file.stem.split("_")[:-2]
-                label_str = "_".join(label_str)
+                for label_str in self.config.data_labels:
+                    if label_str in file.stem:
+                        # this file belongs to this label
+                        break
                 if label_str not in label_files:
                     label_files[label_str] = []
                 label_files[label_str].append(file)
@@ -166,8 +168,10 @@ class AdversarialDataPair:
             self.adversarial_type_npz_files[adv_type].extend(adv_npz_files)
             label_files = {}
             for file in adv_npz_files:
-                label_str = file.stem.split("_")[:-2]
-                label_str = "_".join(label_str)
+                for label_str in self.config.data_labels:
+                    if label_str in file.stem:
+                        # this file belongs to this label
+                        break
                 if label_str not in label_files:
                     label_files[label_str] = []
                 label_files[label_str].append(file)

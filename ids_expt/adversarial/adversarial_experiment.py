@@ -40,6 +40,7 @@ class AdversarialExperiment:
             r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_attacks"
         ),
         batch_size: int = 64,
+        log_every_n_steps: int = 10000,
     ):
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -51,6 +52,7 @@ class AdversarialExperiment:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.loss = loss
         self.batch_size = batch_size
+        self.log_every_n_steps = log_every_n_steps
 
     def run(self, results_dir: Path = None):
         if results_dir is None:
@@ -164,8 +166,9 @@ class AdversarialExperiment:
         if not result_dir.exists():
             result_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Generating adversarial examples for {num_samples} samples")
+        adv_paths = []
         if as_npz:
-            batch_idx = 0
+            batch_idx = -1
             lbl_str_mapping = {
                 np.array(v).argmax(): k
                 for k, v in dataset.dataset.label_encoding.items()
@@ -179,6 +182,7 @@ class AdversarialExperiment:
                 desc="Generating adversarial examples",
                 disable=not sys.stdout.isatty(),
             ):
+                batch_idx += 1
                 adv_images = attack.generate(x=images.numpy())
 
                 lbls_str = [
@@ -193,6 +197,20 @@ class AdversarialExperiment:
                         result_dir
                         / f"{lbl_str}_{batch_idx}_{i}_{self.output_dir.name}.npz"
                     )
+                    if adv_data_path.exists():
+                        logger.warning(
+                            f"Adversarial image {adv_data_path} already exists."
+                        )
+                        raise FileExistsError(
+                            f"Adversarial image {adv_data_path} already exists."
+                        )
+                    adv_paths.append(adv_data_path)
+                    if len(adv_paths) % self.log_every_n_steps == 0:
+                        logger.info(
+                            f"{self.output_dir.name}/{out_folder} - Generated {len(adv_paths)} adversarial examples"
+                            f" for {dataset.data_type.value} dataset."
+                        )
+
                     np.savez_compressed(
                         adv_data_path,
                         inputs=input_img.astype(np.uint8),
@@ -236,7 +254,8 @@ class AdversarialExperiment:
                     adv_img[row_mask, :] = 0
                     adv_img[:, col_mask] = 0
                 cv2.imwrite(str(adv_img_path), adv_img)
-        logger.info("Done")
+                adv_paths.append(adv_img_path)
+        logger.info(f"Generated {len(adv_paths)} adversarial examples.")
         return result_dir, sample_images if as_npz else None
 
     def _generate_tabular(self, attack, out_folder, dataset):

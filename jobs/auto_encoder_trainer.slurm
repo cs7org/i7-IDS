@@ -67,6 +67,7 @@ for subfolder in "$adversarial_root"/*; do
 done
 
 echo "All adversarial files prepared in $target_root"
+
 export BATCH_SIZE=64
 python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type unet --batch_size "$BATCH_SIZE" --data_type normal
 
