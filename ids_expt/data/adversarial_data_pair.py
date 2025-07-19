@@ -16,10 +16,10 @@ class AdversarialDataPairConfig(BaseModel):
     # here, str will be {adv_alg}_{epsilon}
     adversarial_type_selection_rate: list[tuple[str, float]] = Field(
         default=[
-            ("basiciterativemethod_eps_0.1", 0.25),
-            ("fastgradientmethod_eps_0.1", 0.25),
-            ("basiciterativemethod_eps_0.01", 0.25),
-            ("fastgradientmethod_eps_0.01", 0.25),
+            ("basiciterativemethod_eps_0.1", 0.4),
+            ("fastgradientmethod_eps_0.1", 0.3),
+            ("basiciterativemethod_eps_0.01", 0.15),
+            ("fastgradientmethod_eps_0.01", 0.15),
         ],
         description="List of tuples with adversarial type and its selection rate. ",
     )
@@ -36,6 +36,10 @@ class AdversarialDataPairConfig(BaseModel):
     num_samples_per_epoch: int = Field(
         default=10000,
         description="Number of samples to use per epoch for training. -1 means use all available data.",
+    )
+    validation_ratio: float = Field(
+        default=0.15,
+        description="Ratio of the dataset to be used for validation. If -1, no validation set will be created.",
     )
     sampling_method: SamplingMethod = Field(
         default=SamplingMethod.OVERSAMPLE,
@@ -54,6 +58,14 @@ class AdversarialDataPairConfig(BaseModel):
             "DISABLE_UNSOLICITED",
         ],
         description="List of labels to use for training. If empty, all labels will be used.",
+    )
+    apply_noise_rate: float = Field(
+        default=0.7,
+        description="Rate of applying noise to the input images. 0 means no noise.",
+    )
+    noise_range: tuple[float, float] = Field(
+        default=(-0.01, 0.01),
+        description="Range of noise to apply to the input images. Used only if apply_noise_rate > 0.",
     )
 
 
@@ -193,7 +205,10 @@ class AdversarialDataPair:
         return train_pair, val_pair
 
     def __len__(self):
-        return self.config.num_samples_per_epoch
+        if self.data_type == DataType.TRAIN:
+            return self.config.num_samples_per_epoch
+        else:
+            return int(self.config.validation_ratio * self.config.num_samples_per_epoch)
 
     def __getitem__(self, idx):
         # randomly select an adversarial type based on selection rates
@@ -231,6 +246,22 @@ class AdversarialDataPair:
             # select clean image as input
             input_image = target_img.copy()
             self.data_kind = "Clean"
+        if (
+            # self.data_type == DataType.TRAIN
+            # and
+            self.config.apply_noise_rate > 0
+            and self.random_state.rand() < self.config.apply_noise_rate
+        ):
+            noise_level = self.config.noise_range[1]
+            mean_pix = input_image.mean()
+            noise = np.random.normal(0, noise_level, input_image.shape) * 255
+            noise = np.clip(noise, -mean_pix, mean_pix)
+            # print(noise.min(), noise.max())
+
+            input_image = input_image.astype(float)
+            input_image += noise
+            input_image = np.clip(input_image, 0, 255)
+            input_image = input_image.astype(np.uint8)
         # normalize by 255
         input_image = input_image.astype(np.float32) / 255.0
         target_img = target_img.astype(np.float32) / 255.0

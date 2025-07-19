@@ -43,28 +43,26 @@ for subfolder in "$adversarial_root"/*; do
     fi
 done
 
-adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_nosampling"
+# adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_nosampling"
 
-# Copy and unzip all train and val zip files for each subfolder
-for subfolder in "$adversarial_root"/*; do
-    if [ -d "$subfolder" ]; then
-        name=$(basename "$subfolder")
-        for split in train val; do
-            zip_file="${subfolder}/${name}_${split}.zip"
-            dest_dir="${target_root}/${name}/${split}"
-            mkdir -p "$dest_dir"
-            if [ -f "$zip_file" ]; then
-                echo "Unzipping $zip_file to $dest_dir"
-                unzip -q "$zip_file" -d "$dest_dir"
-            else
-                echo "Warning: $zip_file not found."
-            fi
-        done
-    fi
-done
+# # Copy and unzip all train and val zip files for each subfolder
+# for subfolder in "$adversarial_root"/*; do
+#     if [ -d "$subfolder" ]; then
+#         name=$(basename "$subfolder")
+#         for split in train val; do
+#             zip_file="${subfolder}/${name}_${split}.zip"
+#             dest_dir="${target_root}/${name}/${split}"
+#             mkdir -p "$dest_dir"
+#             if [ -f "$zip_file" ]; then
+#                 echo "Unzipping $zip_file to $dest_dir"
+#                 unzip -q "$zip_file" -d "$dest_dir"
+#             else
+#                 echo "Warning: $zip_file not found."
+#             fi
+#         done
+#     fi
+# done
 
 
 python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normal &
 python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --data_type normal
-
-

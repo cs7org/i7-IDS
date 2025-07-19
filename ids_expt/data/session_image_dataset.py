@@ -7,6 +7,7 @@ import torch
 from pydantic import BaseModel, Field
 from pathlib import Path
 from ids_expt.core.defs import DataType, SamplingMethod
+import numpy as np
 
 
 class SessionImageDataConfig(BaseModel):
@@ -224,6 +225,7 @@ class DFDataSet:
         logger.info(
             f"Split data into {len(self.train_df)} training and {len(self.test_df)} testing samples"
         )
+        self.config.labels = labels
         train_dataset = DFDataSet(self.config)
         train_dataset.data_df = self.train_df
         train_dataset.data_type = DataType.TRAIN
@@ -290,6 +292,9 @@ class TorchImageDataset(TorchDataset):
         self.label_encoding = dataset.label_encoding
         self.data_type = dataset.data_type
         self.num_classes = len(self.label_encoding)
+        self.label_index = {
+            np.array(v).argmax(): k for k, v in self.label_encoding.items()
+        }
         # Get class counts
         class_counts = self.data["label"].value_counts().to_dict()
 

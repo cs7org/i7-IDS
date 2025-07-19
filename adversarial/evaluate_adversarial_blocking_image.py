@@ -11,7 +11,15 @@ from ids_expt.adversarial.adversarial_blocking import (
     ClfModel,
 )
 
-from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
+from art.attacks.evasion import (
+    FastGradientMethod,
+    BasicIterativeMethod,
+    CarliniL2Method,
+    DeepFool,
+    AutoProjectedGradientDescent,
+    SaliencyMapMethod,
+    MomentumIterativeMethod,
+)
 from art.estimators.classification import PyTorchClassifier
 import argparse
 
@@ -71,7 +79,7 @@ parser.add_argument(
 parser.add_argument(
     "--epsilons",
     type=str,
-    default="0.0001,0.001,0.01,0.1",
+    default="0.01,0.1,0.3,0.5,0.9",
     help="Comma-separated list of epsilon values for adversarial attacks.",
 )
 parser.add_argument(
@@ -132,7 +140,10 @@ else:
     )
     adv_trained_model.eval()
 
-
+epsilons = [float(eps) for eps in epsilons][
+    ::-1
+]  # Reverse order for larger epsilons first
+targeted = True
 for model_path in model_paths:
     if not model_path.exists():
         logger.error(f"Model path does not exist: {model_path}")
@@ -152,20 +163,69 @@ for model_path in model_paths:
     iterations = 10
     input_shape = (1, config.num_pkts, config.byte_length)
 
-    attacks = [
-        FastGradientMethod(
-            estimator=PyTorchClassifier(
-                model=ClfModel(model),
-                loss=torch.nn.CrossEntropyLoss(),
-                clip_values=(0, 1),
-                input_shape=input_shape,
-                nb_classes=len(train_ds.label_encoding),
-                optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
-            ),
-            eps=eps,
-        )
-        for eps in epsilons
-    ]
+    attacks = []
+    attacks.extend(
+        [
+            MomentumIterativeMethod(
+                estimator=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                eps=eps,
+                targeted=targeted,
+                batch_size=batch_size,
+                verbose=False,
+                max_iter=iterations,
+            )
+            for eps in epsilons
+        ]
+    )
+    attacks.extend(
+        [
+            AutoProjectedGradientDescent(
+                estimator=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                eps=eps,
+                targeted=targeted,
+                batch_size=batch_size,
+                verbose=False,
+                max_iter=iterations,
+                norm=2,
+            )
+            for eps in epsilons
+        ]
+    )
+
+    attacks.extend(
+        [
+            FastGradientMethod(
+                estimator=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                eps=eps,
+                targeted=targeted,
+                batch_size=batch_size,
+                norm=2,
+            )
+            for eps in epsilons
+        ]
+    )
+
     attacks.extend(
         [
             BasicIterativeMethod(
@@ -178,13 +238,56 @@ for model_path in model_paths:
                     optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
                 ),
                 eps=eps,
-                eps_step=eps / 10,
+                targeted=targeted,
+                batch_size=batch_size,
                 max_iter=iterations,
-                verbose=False,
             )
             for eps in epsilons
         ]
     )
+
+    attacks.extend(
+        [
+            DeepFool(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                batch_size=batch_size,
+                verbose=False,
+            ),
+            SaliencyMapMethod(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                batch_size=batch_size,
+            ),
+            CarliniL2Method(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                targeted=targeted,
+                batch_size=batch_size,
+                verbose=False,
+                max_iter=2,
+            ),
+        ]
+    )
+
     adv = AdversarialBlockingExperiment(
         model=model,
         blocking_model=blocking_model,

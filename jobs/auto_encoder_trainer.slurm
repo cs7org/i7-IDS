@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx2080ti:1
-#SBATCH --partition=work
+#SBATCH --gres=gpu:v100:1
+#SBATCH --partition=v100
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
 #SBATCH --output=ae_trainer.out
@@ -46,31 +46,32 @@ for subfolder in "$adversarial_root"/*; do
     fi
 done
 
-adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_nosampling"
+# adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_nosampling"
 
-# Copy and unzip all train and val zip files for each subfolder
-for subfolder in "$adversarial_root"/*; do
-    if [ -d "$subfolder" ]; then
-        name=$(basename "$subfolder")
-        for split in train val; do
-            zip_file="${subfolder}/${name}_${split}.zip"
-            dest_dir="${target_root}/${name}/${split}"
-            mkdir -p "$dest_dir"
-            if [ -f "$zip_file" ]; then
-                echo "Unzipping $zip_file to $dest_dir"
-                unzip -q "$zip_file" -d "$dest_dir"
-            else
-                echo "Warning: $zip_file not found."
-            fi
-        done
-    fi
-done
+# # Copy and unzip all train and val zip files for each subfolder
+# for subfolder in "$adversarial_root"/*; do
+#     if [ -d "$subfolder" ]; then
+#         name=$(basename "$subfolder")
+#         for split in train val; do
+#             zip_file="${subfolder}/${name}_${split}.zip"
+#             dest_dir="${target_root}/${name}/${split}"
+#             mkdir -p "$dest_dir"
+#             if [ -f "$zip_file" ]; then
+#                 echo "Unzipping $zip_file to $dest_dir"
+#                 unzip -q "$zip_file" -d "$dest_dir"
+#             else
+#                 echo "Warning: $zip_file not found."
+#             fi
+#         done
+#     fi
+# done
 
-echo "All adversarial files prepared in $target_root"
+# echo "All adversarial files prepared in $target_root"
 
-export BATCH_SIZE=64
-python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type unet --batch_size "$BATCH_SIZE" --data_type normal
-
+# export BATCH_SIZE=64
+# python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --use_clf_model --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type unet --batch_size "$BATCH_SIZE" --data_type normal
+export BATCH_SIZE=16
+python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --use_clf_model --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type rdunet --batch_size "$BATCH_SIZE" --data_type normal
 # Clean up: delete the target_root directory
 echo "Cleaning up $target_root"
 rm -rf "$target_root"

@@ -95,6 +95,7 @@ class NNTrainerConfig(BaseModel):
     early_stopping_patience: int = 50
     weighted_loss: bool = True
     log_mlflow: bool = True
+    lr_scheduler: str = "ReduceLROnPlateau"
 
     @property
     def run_dir(self):

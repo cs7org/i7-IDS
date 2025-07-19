@@ -95,7 +95,7 @@ if __name__ == "__main__":
             run_name=run_name + "_adv",
             epochs=1000,
             batch_size=args.batch_size,
-            learning_rate=0.001,
+            learning_rate=0.0001,
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=100,
             weighted_loss=False,

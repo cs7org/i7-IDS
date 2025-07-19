@@ -7,7 +7,15 @@ from ids_expt.data.session_image_dataset import (
 )
 import torch
 from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
-from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod
+from art.attacks.evasion import (
+    FastGradientMethod,
+    BasicIterativeMethod,
+    CarliniL2Method,
+    DeepFool,
+    ShadowAttack,
+    SaliencyMapMethod,
+    MomentumIterativeMethod,
+)
 from art.estimators.classification import PyTorchClassifier
 import argparse
 
@@ -53,9 +61,15 @@ parser.add_argument(
     help="Directory containing the project files.",
 )
 parser.add_argument(
+    "--save_dir",
+    type=str,
+    default=r"C:\Users\Viper\Desktop\thesis_code",
+    help="Directory saving the generated files.",
+)
+parser.add_argument(
     "--epsilons",
     type=str,
-    default="0.0001,0.001,0.01,0.1",
+    default="0.001,0.01,0.1,0.2,0.3,0.5",
     help="Comma-separated list of epsilon values for adversarial attacks.",
 )
 parser.add_argument(
@@ -70,6 +84,12 @@ parser.add_argument(
     action="store_true",
     help="Flag to indicate whether to run adversarial attacks or not.",
 )
+parser.add_argument(
+    "--validation_only",
+    action="store_true",
+    default=True,
+    help="Flag to indicate whether to run validation only or not.",
+)
 
 
 args = parser.parse_args()
@@ -77,6 +97,7 @@ args = parser.parse_args()
 # Parse arguments
 model_names = [m.strip() for m in args.model_names.split(",")]
 project_dir = Path(args.project_dir)
+save_dir = Path(args.save_dir)
 data_dir = Path(args.data_dir)
 if not data_dir.exists():
     logger.error(f"Data directory does not exist: {data_dir}")
@@ -85,8 +106,10 @@ if not project_dir.exists():
     logger.error(f"Project directory does not exist: {project_dir}")
     raise FileNotFoundError(f"Project directory does not exist: {project_dir}")
 epsilons = [float(eps.strip()) for eps in args.epsilons.split(",") if eps.strip()]
+# sort epsilons in descending order
+epsilons.sort(reverse=True)
 batch_size = args.batch_size
-
+validation_only = args.validation_only
 
 # !!!IMPORTANT: full model might not be usable when package is not installed
 model_paths = [
@@ -96,6 +119,7 @@ model_paths = [
 iterations = args.iterations
 max_data = args.max_data
 use_normalized = args.image_type.lower() == "normalized"
+targeted = False
 
 for model_path in model_paths:
     if not model_path.exists():
@@ -152,7 +176,6 @@ for model_path in model_paths:
                     optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
                 ),
                 eps=eps,
-                eps_step=eps / 10,
                 max_iter=iterations,
                 verbose=False,
                 batch_size=batch_size,
@@ -160,6 +183,70 @@ for model_path in model_paths:
             for eps in epsilons
         ]
     )
+    attacks.extend(
+        [
+            MomentumIterativeMethod(
+                estimator=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                eps=eps,
+                targeted=targeted,
+                batch_size=batch_size,
+                verbose=False,
+                max_iter=iterations,
+            )
+            for eps in epsilons
+        ]
+    )
+
+    attacks.extend(
+        [
+            CarliniL2Method(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                targeted=targeted,
+                batch_size=batch_size,
+                verbose=False,
+                max_iter=2,
+            ),
+            DeepFool(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                batch_size=batch_size,
+                verbose=False,
+            ),
+            SaliencyMapMethod(
+                classifier=PyTorchClassifier(
+                    model=ClfModel(model),
+                    loss=torch.nn.CrossEntropyLoss(),
+                    clip_values=(0, 1),
+                    input_shape=input_shape,
+                    nb_classes=len(train_ds.label_encoding),
+                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+                ),
+                batch_size=batch_size,
+                verbose=False,
+            ),
+        ]
+    )
+
     adv = AdversarialExperiment(
         model=model,
         model_name=model_path.parent.name,
@@ -182,7 +269,13 @@ for model_path in model_paths:
         logger.info("Adversarial attacks completed successfully.")
     logger.info("Generating adversarial attack data...")
 
-    selected_attacks = [atk for atk in attacks if atk.eps in [0.1, 0.01]]
+    selected_attacks = []
+    for atk in attacks:
+        if not hasattr(atk, "eps"):
+            atk.eps = 0.0
+            selected_attacks.append(atk)
+        elif atk.eps in epsilons:
+            selected_attacks.append(atk)
 
     for attack in selected_attacks:
         logger.info(
@@ -190,14 +283,24 @@ for model_path in model_paths:
         )
         out_folder = attack.__class__.__name__.lower() + f"_eps_{attack.eps}"
         copy_compressed_to = (
-            project_dir
+            save_dir
             / "results"
             / "adversarial_attacks"
             / model_path.parent.name
             / out_folder
         )
-        adv.generate(
-            attack, out_folder=out_folder, copy_compressed_to=copy_compressed_to
-        )
+        try:
+            if validation_only:
+                logger.info("Running validation only for adversarial data generation.")
+            adv.generate(
+                attack,
+                out_folder=out_folder,
+                copy_compressed_to=copy_compressed_to,
+                validation_only=validation_only,
+            )
+        except Exception as e:
+            logger.error(
+                f"Error generating adversarial data for attack {attack.__class__.__name__} with eps {attack.eps}: {e}"
+            )
 
     logger.info("Adversarial image generation completed successfully.")

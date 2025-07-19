@@ -81,7 +81,7 @@ data_dir = Path(args.data_dir)
 project_dir = Path(args.project_dir)
 
 logger.info(f"Args: {args}")
-expt_name = "image_classification"
+expt_name = "image_classification2"
 
 if __name__ == "__main__":
     # Configuration parameters
@@ -120,8 +120,8 @@ if __name__ == "__main__":
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=100,
             log_mlflow=False,
-            best_model_metric="f1_score",
-            best_model_metric_greater=True,
+            weight_decay=1e-5,
+            optimizer="adamw",
         ),
         model=model,
         train_dataset=TorchImageDataset(train_ds),

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:1
-#SBATCH --partition=work
+#SBATCH --gres=gpu:v100:1
+#SBATCH --partition=v100
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
 #SBATCH --output=resnet.out
@@ -23,7 +23,8 @@ export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 export SAMPLING_METHOD="nosampling"
 
-# Normalized Images trainer
-python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normalized &
-python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normal
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normalized --batch_size 64 &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --image_type normal --batch_size 64 &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normalized --batch_size 64 &
+python3 $HOME/i7-IDS/trainers/session_image_trainer_backbone.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --image_type normal --batch_size 64
 

@@ -2,6 +2,57 @@ from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
 import torch
 from ids_expt.models.cnn_ae import DDSA_CNN
 from loguru import logger
+from torch import nn
+from kornia.losses import SSIMLoss
+
+
+from kornia.losses import SSIMLoss
+
+
+class AdversarialPurificationLoss(nn.Module):
+    def __init__(
+        self,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        window_size: int = 7,
+        max_val: float = 1.0,
+    ):
+        """
+        Combined loss for adversarial image purification:
+          - L2 + L1 reconstruction
+          - SSIM-based structural dissimilarity
+
+        Args:
+            alpha: weight on (0.5*MSE + 0.5*MAE)
+            beta: weight on SSIM loss
+            window_size: kernel size for SSIM computation
+            max_val: dynamic range of images (e.g., 1.0 for normalized)
+        """
+        super().__init__()
+        # reconstruction losses
+        self.mse = nn.MSELoss()
+        self.l1 = nn.L1Loss()
+        # SSIM-based structural dissimilarity (DSSIM = 1 - SSIM)
+        self.ssim = SSIMLoss(
+            window_size=window_size,
+            max_val=max_val,
+            reduction="mean",
+            padding="same",
+        )
+        self.alpha = alpha
+        self.beta = beta
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # compute MSE and MAE
+        mse_val = self.mse(pred, target)
+        l1_val = self.l1(pred, target)
+        recon_loss = 0.5 * mse_val + 0.5 * l1_val
+
+        # compute SSIM loss (already (1 - SSIM)/2 by design of SSIMLoss)
+        ssim_val = self.ssim(pred, target)
+
+        # total loss
+        return self.alpha * recon_loss + self.beta * ssim_val
 
 
 class AETrainer(NNTrainer):
@@ -15,7 +66,7 @@ class AETrainer(NNTrainer):
         clf_model: torch.nn.Module = None,
         clf_loss_weight: float = 0.1,
         ae_loss_weight: float = 0.9,
-        criterion=torch.nn.MSELoss(reduction="mean"),
+        criterion=AdversarialPurificationLoss(),
         ae_type: str = "ddsa",
     ):
         super().__init__(config, model, train_dataset, val_dataset, criterion)
@@ -146,6 +197,10 @@ class AETrainer(NNTrainer):
         clf_loss = torch.nn.CrossEntropyLoss(reduction="mean")(
             recon_logits, label_tensor.argmax(dim=1)
         )
+        # use kl divergence loss
+        # clf_loss = torch.nn.KLDivLoss(reduction="batchmean")(
+        #     recon_logits.log_softmax(dim=1), target_logits.softmax(dim=1)
+        # )
         return clf_loss, rec_f1, inp_f1
 
     def forward_step(self, batch):
@@ -195,19 +250,29 @@ class AETrainer(NNTrainer):
                 total_loss = (
                     self.ae_loss_weight * total_loss + self.clf_loss_weight * clf_loss
                 )
-            return (
-                outputs,
-                total_loss,
-                dict(
-                    recon_loss=recon_loss.item(),
-                    kl_loss=kl_loss.item(),
-                    total_loss=total_loss.item(),
-                    clf_loss=clf_loss.item() if self.clf_model is not None else 0.0,
-                    rec_f1=rec_f1.item() if self.clf_model is not None else 0.0,
-                    inp_f1=inp_f1.item() if self.clf_model is not None else 0.0,
-                ),
-            )
-        elif self.ae_type == "unet":
+                return (
+                    outputs,
+                    total_loss,
+                    dict(
+                        recon_loss=recon_loss.item(),
+                        kl_loss=kl_loss.item(),
+                        total_loss=total_loss.item(),
+                        clf_loss=clf_loss.item() if self.clf_model is not None else 0.0,
+                        rec_f1=rec_f1.item() if self.clf_model is not None else 0.0,
+                        inp_f1=inp_f1.item() if self.clf_model is not None else 0.0,
+                    ),
+                )
+            else:
+                return (
+                    outputs,
+                    total_loss,
+                    dict(
+                        recon_loss=recon_loss.item(),
+                        kl_loss=kl_loss.item(),
+                        total_loss=total_loss.item(),
+                    ),
+                )
+        elif self.ae_type in ["unet", "rdunet"]:
             outputs = self.model(inputs)
             if self.clf_model is not None:
                 clf_loss, rec_f1, inp_f1 = self.get_clf_loss(
@@ -225,6 +290,9 @@ class AETrainer(NNTrainer):
                         total_loss=loss.item(),
                     ),
                 )
+            else:
+                loss = self.criterion(outputs, targets)
+                return outputs, loss, dict(recon_loss=loss.item())
         else:
             loss = self.criterion(outputs, targets)
             return outputs, loss, dict(recon_loss=loss.item())

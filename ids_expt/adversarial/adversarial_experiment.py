@@ -102,6 +102,11 @@ class AdversarialExperiment:
         logger.info("No attack evaluation completed.\n")
 
         for attack in self.attacks:
+            if not hasattr(attack, "eps"):
+                logger.warning(
+                    f"Attack {attack.__class__.__name__} does not have 'eps' attribute. Skipping."
+                )
+                attack.eps = 0.0
             logger.info(
                 f"Running attack: {attack.__class__.__name__} with eps: {attack.eps}"
             )
@@ -301,20 +306,25 @@ class AdversarialExperiment:
         as_npz=True,
         compress_out_folder: bool = True,
         copy_compressed_to: Path = None,
+        validation_only=False,
     ):
         logger.info(
             f"Generating adversarial examples for attack: {attack.__class__.__name__}"
         )
         samples = None
         if is_image_dataset:
-            train_adv_dir, samples = self._generate_image(
-                attack, out_folder, self.train_dataset, preserve_blank_areas, as_npz
-            )
-            logger.info(
-                f"Train Adversarial examples saved to {self.output_dir / out_folder}"
-            )
+            if not validation_only:
+                train_adv_dir, samples = self._generate_image(
+                    attack, out_folder, self.train_dataset, preserve_blank_areas, as_npz
+                )
+                logger.info(
+                    f"Train Adversarial examples saved to {self.output_dir / out_folder}"
+                )
             val_adv_dir, samples = self._generate_image(
                 attack, out_folder, self.test_dataset, preserve_blank_areas, as_npz
+            )
+            logger.info(
+                f"Validation Adversarial examples saved to {self.output_dir / out_folder}"
             )
 
         else:
@@ -341,16 +351,18 @@ class AdversarialExperiment:
                     str(copy_compressed_to / "sample_input.png"), inp
                 )
                 advsaved = cv2.imwrite(str(copy_compressed_to / "sample_adv.png"), adv)
+
             logger.info(
                 f"Sample images saved {inpsaved} to {copy_compressed_to / 'sample_input.png'} and {copy_compressed_to / 'sample_adv.png'}"
             )
 
             # compress train adversarial examples and copy to the specified path
-            shutil.make_archive(
-                copy_compressed_to / f"{out_folder}_train",
-                "zip",
-                train_adv_dir,
-            )
+            if not validation_only:
+                shutil.make_archive(
+                    copy_compressed_to / f"{out_folder}_train",
+                    "zip",
+                    train_adv_dir,
+                )
             shutil.make_archive(
                 copy_compressed_to / f"{out_folder}_val",
                 "zip",

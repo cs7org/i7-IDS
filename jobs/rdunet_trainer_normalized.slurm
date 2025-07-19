@@ -1,17 +1,19 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:1
-#SBATCH --partition=work
+#SBATCH --gres=gpu:v100:1
+#SBATCH --partition=v100
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
-#SBATCH --output=adv_training_normalized.out
+#SBATCH --output=rdunet_normalized.out
 
 unset SLURM_EXPORT_ENV
 module load python
 conda activate pytorch
+
 # export proxy
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80
+
 pip install -e .
 
 echo "Copying compressed adversarial files to TMPDIR"
@@ -20,10 +22,10 @@ echo "Copying compressed adversarial files to TMPDIR"
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_normalized_nosampling"
 target_root="$DATA_DIR/adv_samples"
-
 mkdir -p "$target_root"
+
+adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_normalized_nosampling"
 
 # Copy and unzip all train and val zip files for each subfolder
 for subfolder in "$adversarial_root"/*; do
@@ -64,7 +66,12 @@ done
 # done
 
 
-python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normalized &
-python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --data_type normalized
+echo "All adversarial files prepared in $target_root"
 
+export BATCH_SIZE=16
+python3 $HOME/i7-IDS/trainers/session_ae_trainer.py --use_clf_model --data_dir "$DATA_DIR" --project_dir "$PROJECT_DIR" --ae_type rdunet --batch_size "$BATCH_SIZE" --data_type normalized
 
+# Clean up: delete the target_root directory
+echo "Cleaning up $target_root"
+rm -rf "$target_root"
+echo "Cleanup complete."

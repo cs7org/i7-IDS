@@ -39,6 +39,7 @@ class NNTrainer:
         train_dataset: DataSet,
         val_dataset: DataSet,
         criterion: nn.Module = nn.CrossEntropyLoss(),
+        min_lr: float = 1e-7,
     ):
 
         self.model = model
@@ -89,6 +90,12 @@ class NNTrainer:
         self.patience_counter = 0
         self.started_mlflow = False
         self.epoch = 0
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer,
+            factor=0.9,
+            patience=5,
+            min_lr=min_lr,
+        )
 
         num_classes = train_dataset.num_classes
         batch_size = config.batch_size
@@ -144,13 +151,13 @@ class NNTrainer:
             train_dataset,
             batch_size=config.batch_size,
             shuffle=config.shuffle,
-            num_workers=config.number_of_workers,
+            num_workers=min(8, config.number_of_workers),
         )
         self.val_loader = torch.utils.data.DataLoader(
             val_dataset,
             batch_size=config.batch_size,
             shuffle=False,
-            num_workers=config.number_of_workers,
+            num_workers=min(8, config.number_of_workers),
         )
         self.metrics = self.get_metrics()
         if self.config.weighted_loss:
@@ -333,6 +340,9 @@ class NNTrainer:
                 outputs, val_loss, val_metrics = self.run_epoch(
                     self.val_loader, is_train=False
                 )
+            # scheduler step
+            self.scheduler.step(metrics=val_loss)
+            logger.info(f"Learning rate: {self.optimizer.param_groups[0]['lr']:.6f}")
             self.at_epoch_end()
             metrics = val_metrics.keys()
             logger.info(
@@ -406,6 +416,12 @@ class NNTrainer:
                 val_loss,
                 val_metrics,
             )
+            # if lr gets 0, stop training
+            if self.optimizer.param_groups[0]["lr"] <= 0:
+                logger.info(
+                    "Learning rate has reached 0. Stopping training to prevent further issues."
+                )
+                break
         logger.info("Training completed.")
         if self.config.log_mlflow:
             mlflow.end_run()

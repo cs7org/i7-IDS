@@ -35,5 +35,6 @@ setup(
         "torchvision",
         "psutil",
         "adversarial-robustness-toolbox==1.20.0",
+        "pytorch_ssim",
     ],
 )
