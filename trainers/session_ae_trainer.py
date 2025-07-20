@@ -69,7 +69,7 @@ parser.add_argument(
 parser.add_argument(
     "--expt_name",
     type=str,
-    default="autoencoder2",
+    default="autoencoder",
     help="Name of the experiment for logging purposes.",
 )
 # default false
