@@ -327,8 +327,10 @@ for adversarial_name in adversarial_names:
         recon_adv_clf_predictions = []
         recon_adv_atc_predictions = []
 
-        clean_mae_values = []
-        adv_mae_values = []
+        clean_recon_mae_values = []
+        adv_recon_mae_values = []
+        adv_recon_inp_mae_values = []
+
 
         # label, clean, adversarial, reconstructed
         sample_images = {}
@@ -406,7 +408,7 @@ for adversarial_name in adversarial_names:
             recon_clean_atc_predictions.extend(recon_clean_atc_preds.tolist())
             recon_adv_clf_predictions.extend(recon_adv_clf_preds.tolist())
             recon_adv_atc_predictions.extend(recon_adv_atc_preds.tolist())
-            clean_mae = (
+            clean_recon_mae = (
                 torch.mean(
                     torch.abs(input_batch - recon_input).view(input_batch.size(0), -1),
                     dim=1,
@@ -414,9 +416,9 @@ for adversarial_name in adversarial_names:
                 .cpu()
                 .numpy()
             )
-            adv_mae = (
+            adv_recon_mae = (
                 torch.mean(
-                    torch.abs(input_batch - recon_adversarial).view(
+                    torch.abs(adversarial_batch - recon_adversarial).view(
                         adversarial_batch.size(0), -1
                     ),
                     dim=1,
@@ -424,8 +426,20 @@ for adversarial_name in adversarial_names:
                 .cpu()
                 .numpy()
             )
-            clean_mae_values.extend(clean_mae.tolist())
-            adv_mae_values.extend(adv_mae.tolist())
+            adv_recon_inp_mae = (
+                torch.mean(
+                    torch.abs(input_batch - recon_adversarial).view(
+                        input_batch.size(0), -1
+                    ),
+                    dim=1,
+                )
+                .cpu()
+                .numpy()
+            )
+            clean_recon_mae_values.extend(clean_recon_mae.tolist())
+            adv_recon_mae_values.extend(adv_recon_mae.tolist())
+            adv_recon_inp_mae_values.extend(adv_recon_inp_mae.tolist())
+
 
         true_targets = np.array(true_targets)
 
@@ -476,8 +490,11 @@ for adversarial_name in adversarial_names:
             labels,
         )
 
-        clean_mae_values = np.mean(clean_mae_values)
-        adv_mae_values = np.mean(adv_mae_values)
+        # Calculate MAE values
+
+        clean_recon_mae_values = np.mean(clean_recon_mae_values)
+        adv_recon_mae_values = np.mean(adv_recon_mae_values)
+        adv_recon_inp_mae_values = np.mean(adv_recon_inp_mae_values)
 
         logger.info(
             f"Results for {adversarial_name} "
@@ -489,8 +506,9 @@ for adversarial_name in adversarial_names:
             f"Blocked Adv CLF F1: {recon_clean_atc_f1:.4f}, "
             f"Adv Blocked CLF F1: {recon_adv_clf_f1:.4f}, "
             f"Adv Blocked ATC F1: {recon_adv_atc_f1:.4f}, "
-            f"Clean MAE: {clean_mae_values:.4f}, "
-            f"Adv MAE: {adv_mae_values:.4f}"
+            f"Clean Recon MAE: {clean_recon_mae_values:.4f}, "
+            f"Adv Recon MAE: {adv_recon_mae_values:.4f}, "
+            f"Adv Recon Input MAE: {adv_recon_inp_mae_values:.4f}",
         )
         results.append(
             {
@@ -508,8 +526,10 @@ for adversarial_name in adversarial_names:
                 "recon_clean_atc_f1": recon_clean_atc_f1,
                 "recon_adv_clf_f1": recon_adv_clf_f1,
                 "recon_adv_atc_f1": recon_adv_atc_f1,
-                "clean_mae": clean_mae_values,
-                "adv_mae": adv_mae_values,
+                "clean_recon_mae": clean_recon_mae_values,
+                "adv_recon_mae": adv_recon_mae_values,
+                "adv_recon_inp_mae": adv_recon_inp_mae_values,
+                
                 "clean_clf_cm": clean_clf_cm.tolist(),
                 "clean_atc_cm": clean_atc_cm.tolist(),
                 "adv_clf_cm": adv_clf_cm.tolist(),
