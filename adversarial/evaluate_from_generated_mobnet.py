@@ -33,16 +33,6 @@ class DataSet(torch.utils.data.Dataset):
             raise FileNotFoundError(
                 f"No .npz files found in {input_dir / adversarial_type / data_split}"
             )
-        refined_npz_files = []
-        for label in self.labels:
-            label_files = [
-                f for f in self.npz_files if label.lower() in f.name.lower()
-            ]
-            if not label_files:
-                logger.warning(f"No files found for label {label} in {adversarial_type}")
-            else:
-                refined_npz_files.extend(label_files)
-        self.npz_files = refined_npz_files
 
     def __len__(self):
         return (
@@ -92,7 +82,7 @@ parser.add_argument(
 parser.add_argument(
     "--output_dir",
     type=str,
-    default="/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_blocking_attack",
+    default="/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_blocking_mobnet",
     help="Directory to save the output results.",
 )
 parser.add_argument(
@@ -160,7 +150,6 @@ def get_predictions(
         # for clean data
         clean_clf_logit, proba = clf_model(input_tensor)
         clean_atc_logit, adv_proba = atc_model(input_tensor)
-        # print(clean_clf_logit.shape)
 
         # for adversarial data
         adv_clf_logit, adv_proba = clf_model(adversarial_tensor)
@@ -208,52 +197,52 @@ labels = [
     "DNP3_INFO",
     "DNP3_ENUMERATE",
     "STOP_APP",
+    "NORMAL",
     "INIT_DATA",
     "COLD_RESTART",
     "WARM_RESTART",
     "DISABLE_UNSOLICITED",
 ]
 
-
 clf_adv_ae_models = [
     # [
     #     Path("image_classification/resnet18_nosampling"),
     #     Path("image_classification/resnet18_nosampling_adv"),
-    #     Path("autoencoder/rdunet_normal"),
+    #     Path("autoencoder/rdunet_normal_no_clf"),
     # ],
     # [
     #     Path("image_classification/resnet18_normalized_nosampling"),
     #     Path("image_classification/resnet18_normalized_nosampling_adv"),
-    #     Path("autoencoder/rdunet_normalized"),
+    #     Path("autoencoder/rdunet_normalized_no_clf"),
     # ],
     [
-        Path("image_classification2/mobilenet_v3_large_nosampling_multiclass_attack_only"),
-        Path("image_classification/mobilenet_v3_large_nosampling_multiclass_attack_only_adv"),
+        Path("image_classification/mobilenet_v3_large_nosampling"),
+        Path("image_classification/mobilenet_v3_large_nosampling_adv"),
         Path("autoencoder/rdunet_normal_no_clf"),
     ],
     [
-        Path("image_classification2/mobilenet_v3_large_normalized_nosampling_multiclass_attack_only"),
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling_multiclass_attack_only_adv"),
+        Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
+        Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
         Path("autoencoder/rdunet_normalized_no_clf"),
     ],
     # [
     #     Path("image_classification/resnet18_nosampling"),
     #     Path("image_classification/resnet18_nosampling_adv"),
-    #     Path("autoencoder/unet_custom_normal"),
+    #     Path("autoencoder/unet_custom_normal_no_clf"),
     # ],
     # [
     #     Path("image_classification/resnet18_normalized_nosampling"),
     #     Path("image_classification/resnet18_normalized_nosampling_adv"),
-    #     Path("autoencoder/unet_custom_normalized"),
+    #     Path("autoencoder/unet_custom_normalized_no_clf"),
     # ],
     [
-        Path("image_classification2/mobilenet_v3_large_nosampling_multiclass_attack_only"),
-        Path("image_classification/mobilenet_v3_large_nosampling_multiclass_attack_only_adv"),
+        Path("image_classification/mobilenet_v3_large_nosampling"),
+        Path("image_classification/mobilenet_v3_large_nosampling_adv"),
         Path("autoencoder/unet_custom_normal_no_clf"),
     ],
     [
-        Path("image_classification2/mobilenet_v3_large_normalized_nosampling_multiclass_attack_only"),
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling_multiclass_attack_only_adv"),
+        Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
+        Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
         Path("autoencoder/unet_custom_normalized_no_clf"),
     ],
 ]
@@ -261,8 +250,7 @@ clf_adv_ae_models = [
 skip_adversarial_names = ["Carlini", "DeepFool"]
 
 results = []
-for aidx,adversarial_name in enumerate(adversarial_names):
-    logger.info(f"Running {aidx+1}/{len(adversarial_names)}: {adversarial_name}")
+for adversarial_name in adversarial_names:
     skip_this = False
     for skip_name in skip_adversarial_names:
         if skip_name.lower() in adversarial_name.lower():

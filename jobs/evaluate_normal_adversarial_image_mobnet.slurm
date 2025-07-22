@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx2080ti:1
+#SBATCH --gres=gpu:1
 #SBATCH --partition=work
 #SBATCH --time=24:00:00
 #SBATCH --export=NONE
@@ -79,7 +79,7 @@ done
 echo "All adversarial samples processed!"
 echo "Output location: $ADV_SAMPLES_DIR/$ADV_GEN_MODEL"
 
-# python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal
+python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_mobnet.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal
 
 python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_binary.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal
 
