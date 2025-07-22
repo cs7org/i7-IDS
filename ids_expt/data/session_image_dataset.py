@@ -90,6 +90,10 @@ class SessionImageDataConfig(BaseModel):
         ],
         description="List of labels to use for training. If empty, all labels will be used.",
     )
+    attack_only: bool = Field(
+        default=False,
+        description="Whether to use only attack samples for training.",
+    )
 
 
 def image_normalize(image):
@@ -110,6 +114,14 @@ class DFDataSet:
         data_df = pd.read_csv(self.config.labels_file)
         data_df = data_df.query(f"total_matched_pkts>={self.config.min_num_pkts}")
         self.data_df = data_df.copy()
+        if self.config.attack_only:
+            logger.info("Filtering dataset to only include attack samples")
+            # use self.config.label_column to filter attack samples
+            self.data_df = self.data_df.query(
+                f"{self.config.label_column} != '{self.config.normal_label}'"
+            )
+        else:
+            logger.info("Using all samples including normal and attack samples")
         self.data_df["label"] = self.data_df[self.config.label_column].astype(str)
         # it does notr have file_path col
         if self.config.use_normalized:
@@ -134,6 +146,8 @@ class DFDataSet:
                     else "ATTACK"
                 )
             )
+            # update label column to combine all attacks into a single label
+            self.data_df[self.config.label_column] = self.data_df["label"]
             logger.info("Combined all attack types into a single label")
         logger.info(f"Data loaded into DataFrame with {len(self.data_df)} entries")
         logger.info(f"Label distribution:\n{self.data_df['label'].value_counts()}")
@@ -166,6 +180,9 @@ class DFDataSet:
             f"Final dataset size: {len(self.data_df)} entries after applying max_data limit"
         )
         labels = self.data_df["label"].unique().tolist()
+        logger.info(f"Found labels: {labels}")
+        if not labels:
+            raise ValueError("No labels found in the dataset. Please check the data.")
 
         # if self.config.data_labels:
         #     logger.info(
@@ -174,7 +191,6 @@ class DFDataSet:
         #     labels = self.config.data_labels
         # else:
         #     labels.sort()
-        logger.info(f"Using labels: {labels}")
         self.label_encoding = {label: idx for idx, label in enumerate(labels)}
         for label in self.label_encoding.keys():
             lbl = [0] * len(self.label_encoding)
@@ -226,12 +242,12 @@ class DFDataSet:
             f"Split data into {len(self.train_df)} training and {len(self.test_df)} testing samples"
         )
         self.config.labels = labels
-        train_dataset = DFDataSet(self.config)
+        train_dataset = DFDataSet(self.config.copy())
         train_dataset.data_df = self.train_df
         train_dataset.data_type = DataType.TRAIN
         train_dataset.label_encoding = self.label_encoding
 
-        test_dataset = DFDataSet(self.config)
+        test_dataset = DFDataSet(self.config.copy())
         test_dataset.data_df = self.test_df
         test_dataset.data_type = DataType.VALIDATION
         test_dataset.label_encoding = self.label_encoding

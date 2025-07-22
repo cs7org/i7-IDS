@@ -41,6 +41,7 @@ class AdversarialExperiment:
         ),
         batch_size: int = 64,
         log_every_n_steps: int = 10000,
+        targeted: bool = False,
     ):
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -53,6 +54,7 @@ class AdversarialExperiment:
         self.loss = loss
         self.batch_size = batch_size
         self.log_every_n_steps = log_every_n_steps
+        self.targeted = targeted
 
     def run(self, results_dir: Path = None):
         if results_dir is None:
@@ -188,7 +190,17 @@ class AdversarialExperiment:
                 disable=not sys.stdout.isatty(),
             ):
                 batch_idx += 1
-                adv_images = attack.generate(x=images.numpy())
+                if self.targeted:
+                    # For targeted attacks, we need to specify the target labels
+                    # Here we assume the target is the first class for simplicity
+                    target_labels = torch.zeros_like(labels)
+                    # random idx
+                    target_labels[:, np.random.randint(0, labels.shape[1])] = 1
+                    adv_images = attack.generate(
+                        x=images.numpy(), y=target_labels.numpy()
+                    )
+                else:
+                    adv_images = attack.generate(x=images.numpy())
 
                 lbls_str = [
                     lbl_str_mapping[lbl] for lbl in labels.argmax(dim=1).numpy()

@@ -71,6 +71,14 @@ parser.add_argument(
     default=1000,
     help="Number of epochs to train the model.",
 )
+parser.add_argument(
+    "--clf_mode",
+    type=str,
+    choices=["binary", "multiclass"],
+    default="multiclass",
+    help="Classification mode: 'binary' for binary classification, 'multiclass' for multiclass classification.",
+)
+parser.add_argument("--attack_only", action="store_true", default=False, help="Use only attack samples for training.")
 
 args = parser.parse_args()
 batch_size = args.batch_size
@@ -81,6 +89,14 @@ data_dir = Path(args.data_dir)
 project_dir = Path(args.project_dir)
 
 logger.info(f"Args: {args}")
+
+combine_attacks = True if args.clf_mode == "binary" else False
+attack_only = args.attack_only
+if attack_only:
+    suffix = "_attack_only"
+else:
+    suffix = ""
+
 expt_name = "image_classification2"
 
 if __name__ == "__main__":
@@ -91,6 +107,8 @@ if __name__ == "__main__":
         labels_file=data_dir / "labelled_sessions.csv",
         sampling_method=sampling_method.lower(),
         use_normalized=use_normalized,
+        combine_attacks=combine_attacks,
+        attack_only=attack_only,
     )
 
     # Load the dataset
@@ -101,7 +119,7 @@ if __name__ == "__main__":
     if not expt_dir.exists():
         expt_dir.mkdir(parents=True)
 
-    run_name = f"{args.backbone}{normalized_str}{sampling_method}"
+    run_name = f"{args.backbone}{normalized_str}{sampling_method}_{args.clf_mode}{suffix}"
     model = ImageClfModel(
         in_channel=1,
         num_classes=len(train_ds.label_encoding),
@@ -118,7 +136,7 @@ if __name__ == "__main__":
             batch_size=batch_size,
             learning_rate=0.0001,
             device="cuda" if torch.cuda.is_available() else "cpu",
-            early_stopping_patience=100,
+            early_stopping_patience=20,
             log_mlflow=False,
             weight_decay=1e-5,
             optimizer="adamw",

@@ -67,6 +67,14 @@ class AdversarialDataPairConfig(BaseModel):
         default=(-0.01, 0.01),
         description="Range of noise to apply to the input images. Used only if apply_noise_rate > 0.",
     )
+    combine_attacks: bool = Field(
+        default=False,
+        description="If True, combine all attacks into one class. If False, keep them separate.",
+    )
+    attack_only: bool = Field(
+        default=False,
+        description="If True, use only attack samples for training. If False, use both normal and attack samples.",
+    )
 
 
 class AdversarialDataPair:
@@ -80,6 +88,11 @@ class AdversarialDataPair:
         self.adversarial_type_npz_files = {
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
+        
+        if self.config.attack_only:
+            self.config.data_labels = [l for l in self.config.data_labels if l != "NORMAL"]
+        if self.config.combine_attacks:
+            self.config.data_labels = ["ATTACK", "NORMAL"]
         self.label_counts = {}
         self.label_encoding = {
             label: idx for idx, label in enumerate(config.data_labels)
@@ -89,7 +102,7 @@ class AdversarialDataPair:
             idx = self.label_encoding[label]
             lbl[idx] = 1
             self.label_encoding[label] = lbl
-
+        logger.info(f"Label encoding: {self.label_encoding}")
     def load_data(self):
         # load file names
         data_dir = self.config.data_dir
@@ -103,12 +116,28 @@ class AdversarialDataPair:
             label_files = {}
             for file in adv_npz_files:
                 for label_str in self.config.data_labels:
-                    if label_str in file.stem:
-                        # this file belongs to this label
-                        break
-                if label_str not in label_files:
-                    label_files[label_str] = []
-                label_files[label_str].append(file)
+                    if self.config.combine_attacks:
+                        if "NORMAL" in file.stem:
+                            # this file belongs to normal label
+                            if "NORMAL" not in label_files:
+                                label_files["NORMAL"] = []
+                            label_files["NORMAL"].append(file)
+                            break
+                        else:
+                            # this file belongs to attack label
+                            if "ATTACK" not in label_files:
+                                label_files["ATTACK"] = []
+                            label_files["ATTACK"].append(file)
+                            break
+                        
+                    else:
+                        if label_str in file.stem:
+                            # this file belongs to this label                
+                            if label_str not in label_files:
+                                label_files[label_str] = []
+                            label_files[label_str].append(file)
+                            break
+                    
             label_counts = {label: len(files) for label, files in label_files.items()}
             logger.info(f"Label counts: {label_counts} for {adv_type}")
             max_label_count = max(label_counts.values())
@@ -158,10 +187,14 @@ class AdversarialDataPair:
         logger.info(
             f"Loaded adversarial files from {len(self.adversarial_type_npz_files)} types."
         )
+        
+        if self.config.attack_only:
+            self.config.data_labels = [l for l in self.config.data_labels if l != "NORMAL"]
+
 
         # make train data pair
         train_pair = AdversarialDataPair(
-            config=self.config,
+            config=self.config.copy(),
         )
         train_pair.data_type = DataType.TRAIN
         train_pair.adversarial_type_npz_files = self.adversarial_type_npz_files
@@ -181,14 +214,29 @@ class AdversarialDataPair:
             label_files = {}
             for file in adv_npz_files:
                 for label_str in self.config.data_labels:
-                    if label_str in file.stem:
-                        # this file belongs to this label
-                        break
-                if label_str not in label_files:
-                    label_files[label_str] = []
-                label_files[label_str].append(file)
+                    if self.config.combine_attacks:
+                        if "NORMAL" in file.stem:
+                            # this file belongs to normal label
+                            if "NORMAL" not in label_files:
+                                label_files["NORMAL"] = []
+                            label_files["NORMAL"].append(file)
+                            break
+                        else:
+                            # this file belongs to attack label
+                            if "ATTACK" not in label_files:
+                                label_files["ATTACK"] = []
+                            label_files["ATTACK"].append(file)
+                            break
+                        
+                    else:
+                        if label_str in file.stem:
+                            # this file belongs to this label                
+                            if label_str not in label_files:
+                                label_files[label_str] = []
+                            label_files[label_str].append(file)
+                            break
             label_counts = {label: len(files) for label, files in label_files.items()}
-            logger.info(f"Label counts: {label_counts} for {adv_type}")
+            logger.info(f"Validation Label counts: {label_counts} for {adv_type}")
             self.label_counts = {
                 label: self.label_counts.get(label, 0) + count
                 for label, count in label_counts.items()
@@ -196,7 +244,7 @@ class AdversarialDataPair:
 
         # make validation data pair
         val_pair = AdversarialDataPair(
-            config=self.config,
+            config=self.config.copy(),
         )
         val_pair.data_type = DataType.VALIDATION
         val_pair.adversarial_type_npz_files = self.adversarial_type_npz_files
@@ -205,10 +253,10 @@ class AdversarialDataPair:
         return train_pair, val_pair
 
     def __len__(self):
-        if self.data_type == DataType.TRAIN:
-            return self.config.num_samples_per_epoch
-        else:
-            return int(self.config.validation_ratio * self.config.num_samples_per_epoch)
+        # if self.data_type == DataType.TRAIN:
+        return self.config.num_samples_per_epoch
+        # else:
+        #     return int(self.config.validation_ratio * self.config.num_samples_per_epoch)
 
     def __getitem__(self, idx):
         # randomly select an adversarial type based on selection rates
@@ -216,18 +264,26 @@ class AdversarialDataPair:
             [adv_type for adv_type, _ in self.adversarial_type_selection_rate],
             p=[rate for _, rate in self.adversarial_type_selection_rate],
         )
-        # randomly select a file from the selected adversarial type
         selected_files = self.adversarial_type_npz_files[adv_type]
         if not selected_files:
-            logger.warning(f"No files available for adversarial type: {adv_type}")
-            raise ValueError(f"No files available for adversarial type: {adv_type}")
+            raise ValueError(f"No files found for adversarial type: {adv_type}")
 
         selected_file = self.random_state.choice(selected_files)
+        # logger.debug(f"Selected file: {adv_type}, {selected_file}")
         # load the npz file
         npz_data = np.load(selected_file)
         input_image = npz_data["inputs"]
         adversarial_image = npz_data["adversarial"]
         label = npz_data["label_str"].item()
+
+        if label not in self.label_encoding:
+            return self.__getitem__(self.random_state.randint(len(self)))
+
+        if self.config.combine_attacks:
+            if "NORMAL" in label:
+                label = "NORMAL"
+            else:
+                label = "ATTACK"
 
         # our input will be adversarial image and target will be clean image
         target_img = input_image.copy()
@@ -302,7 +358,11 @@ if __name__ == "__main__":
     import os
 
     config = AdversarialDataPairConfig(
-        data_dir=Path(os.environ.get("DATA_DIR", "data/adv_samples"))
+        data_dir=Path(os.environ.get("DATA_DIR", "data/adv_samples"),
+        )
+    ,
+    attack_only=True
+    # combine_attacks=True,
     )
     dataset = AdversarialDataPair(config)
     train_dataset, test_dataset = dataset.load_data()
@@ -311,7 +371,7 @@ if __name__ == "__main__":
     print(f"Test dataset size: {len(test_dataset)}")
 
     # Example of getting an item
-    input_img, target_img = train_dataset[0]
+    input_img, target_img,label_tensor = TorchPairDataset(train_dataset)[0]
     print(
-        f"Input image shape: {input_img.shape}, Target image shape: {target_img.shape}"
+        f"Input image shape: {input_img.shape}, Target image shape: {target_img.shape}, Label: {label_tensor.shape}"
     )

@@ -45,7 +45,7 @@ parser.add_argument(
 parser.add_argument(
     "--num_samples_per_epoch",
     type=int,
-    default=10000,
+    default=28881,
     help="Number of samples per epoch for training.",
 )
 parser.add_argument(
@@ -64,6 +64,7 @@ parser.add_argument(
 parser.add_argument(
     "--use_clf_model",
     action="store_true",
+    default=False,
     help="Whether to use a pre-trained classifier model for training the autoencoder.",
 )
 parser.add_argument(
@@ -143,8 +144,9 @@ if __name__ == "__main__":
         num_samples_per_epoch=num_samples_per_epoch,
         clean_selection_rate=0.5,
     )
+    # 28881 samples for training and 9627 from original 
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
-    val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
+    val_ds.config.num_samples_per_epoch = 9627 #int(num_samples_per_epoch * 0.15)
     num_workers = max(args.num_workers // 2, 1)
     logger.info(f"Number of workers for data loading: {num_workers}")
     trainer = AETrainer(

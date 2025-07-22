@@ -38,7 +38,7 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=64,
+    default=128,
     help="Batch size for training.",
 )
 parser.add_argument(
@@ -54,6 +54,16 @@ parser.add_argument(
     default="normal",
     help="Type of data to use for training. 'normal' for raw images, 'normalized' for normalized images.",
 )
+parser.add_argument(
+    "--clf_mode",
+    type=str,
+    choices=["binary", "multiclass"],
+    default="multiclass",
+    help="Classification mode to use. 'binary' for binary classification, 'multiclass' for multiclass classification.",
+)
+parser.add_argument("--attack_only", action="store_true", default=False, help="Use only attack samples for training.")
+
+
 args = parser.parse_args()
 project_dir = Path(args.project_dir)
 data_dir = Path(args.data_dir)
@@ -61,12 +71,24 @@ num_samples_per_epoch = args.num_samples_per_epoch
 normalized_str = "_normalized_" if args.data_type == "normalized" else "_"
 sampling_method = "nosampling"
 
+combine_attacks = True if args.clf_mode == "binary" else False
+attack_only = args.attack_only
+if attack_only:
+    suffix = "_attack_only"
+else:
+    suffix = ""
+
 if __name__ == "__main__":
     data_config = AdversarialDataPairConfig(
         data_dir=data_dir,
         num_samples_per_epoch=num_samples_per_epoch,
-        clean_selection_rate=0.5,
+        clean_selection_rate=0.7,
+        combine_attacks=combine_attacks,
+        attack_only=attack_only,
+        apply_noise_rate=0.2
+
     )
+    logger.info(f"Data Config: {data_config}")
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
 
     run_name = f"{args.backbone}{normalized_str}{sampling_method}"
@@ -87,21 +109,23 @@ if __name__ == "__main__":
     inp, out, lbl = val_ds[0]
     img = np.hstack([inp, out])
     cv2.imwrite(str(expt_dir / f"{run_name}.png"), (img * 255).astype(np.uint8))
+    run_name = f"{args.backbone}{normalized_str}{sampling_method}_{args.clf_mode}{suffix}"
 
     trainer = AdvTrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",
             expt_name="image_classification",
             run_name=run_name + "_adv",
-            epochs=1000,
+            epochs=200,
             batch_size=args.batch_size,
             learning_rate=0.0001,
             device="cuda" if torch.cuda.is_available() else "cpu",
-            early_stopping_patience=100,
+            early_stopping_patience=20,
             weighted_loss=False,
             log_mlflow=False,
             weight_decay=1e-5,
             optimizer="adamw",
+            number_of_workers=8
         ),
         model=model,
         train_dataset=TorchPairDataset(train_ds),

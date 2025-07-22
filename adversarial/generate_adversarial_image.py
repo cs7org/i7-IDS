@@ -94,10 +94,14 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+save_dir = args.save_dir
+targeted = True
+save_dir = save_dir if not targeted else save_dir + "_targeted"
+
 # Parse arguments
 model_names = [m.strip() for m in args.model_names.split(",")]
 project_dir = Path(args.project_dir)
-save_dir = Path(args.save_dir)
+save_dir = Path(save_dir)
 data_dir = Path(args.data_dir)
 if not data_dir.exists():
     logger.error(f"Data directory does not exist: {data_dir}")
@@ -119,7 +123,6 @@ model_paths = [
 iterations = args.iterations
 max_data = args.max_data
 use_normalized = args.image_type.lower() == "normalized"
-targeted = False
 
 for model_path in model_paths:
     if not model_path.exists():
@@ -161,6 +164,7 @@ for model_path in model_paths:
             ),
             eps=eps,
             batch_size=batch_size,
+            targeted=targeted,
         )
         for eps in epsilons
     ]
@@ -179,6 +183,7 @@ for model_path in model_paths:
                 max_iter=iterations,
                 verbose=False,
                 batch_size=batch_size,
+                targeted=targeted,
             )
             for eps in epsilons
         ]
@@ -199,6 +204,7 @@ for model_path in model_paths:
                 batch_size=batch_size,
                 verbose=False,
                 max_iter=iterations,
+
             )
             for eps in epsilons
         ]
@@ -220,30 +226,30 @@ for model_path in model_paths:
                 verbose=False,
                 max_iter=2,
             ),
-            DeepFool(
-                classifier=PyTorchClassifier(
-                    model=ClfModel(model),
-                    loss=torch.nn.CrossEntropyLoss(),
-                    clip_values=(0, 1),
-                    input_shape=input_shape,
-                    nb_classes=len(train_ds.label_encoding),
-                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
-                ),
-                batch_size=batch_size,
-                verbose=False,
-            ),
-            SaliencyMapMethod(
-                classifier=PyTorchClassifier(
-                    model=ClfModel(model),
-                    loss=torch.nn.CrossEntropyLoss(),
-                    clip_values=(0, 1),
-                    input_shape=input_shape,
-                    nb_classes=len(train_ds.label_encoding),
-                    optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
-                ),
-                batch_size=batch_size,
-                verbose=False,
-            ),
+            # DeepFool(
+            #     classifier=PyTorchClassifier(
+            #         model=ClfModel(model),
+            #         loss=torch.nn.CrossEntropyLoss(),
+            #         clip_values=(0, 1),
+            #         input_shape=input_shape,
+            #         nb_classes=len(train_ds.label_encoding),
+            #         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+            #     ),
+            #     batch_size=batch_size,
+            #     verbose=False,
+            # ),
+            # SaliencyMapMethod(
+            #     classifier=PyTorchClassifier(
+            #         model=ClfModel(model),
+            #         loss=torch.nn.CrossEntropyLoss(),
+            #         clip_values=(0, 1),
+            #         input_shape=input_shape,
+            #         nb_classes=len(train_ds.label_encoding),
+            #         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+            #     ),
+            #     batch_size=batch_size,
+            #     verbose=False,
+            # ),
         ]
     )
 
@@ -256,6 +262,7 @@ for model_path in model_paths:
         input_shape=input_shape,
         output_dir=data_dir / "adversarial_attacks" / model_path.parent.name,
         batch_size=batch_size,
+        targeted=targeted,
     )
 
     if not args.run_adv:

@@ -1,7 +1,7 @@
 import seaborn as sns
 import torch
-from sklearn.metrics import confusion_matrix, f1_score
-from torchmetrics.functional.classification import multiclass_f1_score
+from sklearn.metrics import confusion_matrix
+from torchmetrics.functional.classification import multiclass_f1_score, binary_f1_score
 from loguru import logger
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -14,13 +14,20 @@ def get_confusion_matrix(
     out_file: Path | None = None,
     eps=0,
 ):
+    if len(label_keys)>2:
 
-    f1 = multiclass_f1_score(
-        torch.tensor(predictions),
-        torch.tensor(targets),
-        num_classes=len(label_keys),
-        average="macro",
-    )
+        f1 = multiclass_f1_score(
+            torch.tensor(predictions),
+            torch.tensor(targets),
+            num_classes=len(label_keys),
+            average="macro",
+        )
+    else:
+        f1 = binary_f1_score(
+            torch.tensor(predictions),
+            torch.tensor(targets),
+            
+        )
 
     cm = confusion_matrix(targets, predictions)
 

@@ -20,30 +20,10 @@ echo "Copying compressed adversarial files to TMPDIR"
 export DATA_DIR="$TMPDIR"
 export PROJECT_DIR="$HOME/i7-IDS"
 
-adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_normalized_nosampling"
 target_root="$DATA_DIR/adv_samples"
-
 mkdir -p "$target_root"
 
-# Copy and unzip all train and val zip files for each subfolder
-for subfolder in "$adversarial_root"/*; do
-    if [ -d "$subfolder" ]; then
-        name=$(basename "$subfolder")
-        for split in train val; do
-            zip_file="${subfolder}/${name}_${split}.zip"
-            dest_dir="${target_root}/${name}/${split}"
-            mkdir -p "$dest_dir"
-            if [ -f "$zip_file" ]; then
-                echo "Unzipping $zip_file to $dest_dir"
-                unzip -q "$zip_file" -d "$dest_dir"
-            else
-                echo "Warning: $zip_file not found."
-            fi
-        done
-    fi
-done
-
-# adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_normalized_nosampling"
+# adversarial_root="$PROJECT_DIR/results/adversarial_attacks/resnet18_normalized_nosampling"
 
 # # Copy and unzip all train and val zip files for each subfolder
 # for subfolder in "$adversarial_root"/*; do
@@ -63,8 +43,30 @@ done
 #     fi
 # done
 
+adversarial_root="$PROJECT_DIR/results/adversarial_attacks/mobilenet_v3_large_normalized_nosampling"
 
-python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normalized &
-python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --data_type normalized
+# Copy and unzip all train and val zip files for each subfolder
+for subfolder in "$adversarial_root"/*; do
+    if [ -d "$subfolder" ]; then
+        name=$(basename "$subfolder")
+        for split in train val; do
+            zip_file="${subfolder}/${name}_${split}.zip"
+            dest_dir="${target_root}/${name}/${split}"
+            mkdir -p "$dest_dir"
+            if [ -f "$zip_file" ]; then
+                echo "Unzipping $zip_file to $dest_dir"
+                unzip -q "$zip_file" -d "$dest_dir"
+            else
+                echo "Warning: $zip_file not found."
+            fi
+        done
+    fi
+done
 
 
+# python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone resnet18 --data_type normalized &
+export CLF_MODE="binary"
+python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --clf_mode $CLF_MODE --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --data_type normalized
+
+export CLF_MODE="multiclass"
+python3 $HOME/i7-IDS/trainers/session_adv_trainer.py --clf_mode $CLF_MODE --data_dir $DATA_DIR --project_dir $PROJECT_DIR --backbone mobilenet_v3_large --data_type normalized --attack_only
