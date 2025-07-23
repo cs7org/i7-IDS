@@ -88,9 +88,11 @@ class AdversarialDataPair:
         self.adversarial_type_npz_files = {
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
-        
+
         if self.config.attack_only:
-            self.config.data_labels = [l for l in self.config.data_labels if l != "NORMAL"]
+            self.config.data_labels = [
+                l for l in self.config.data_labels if l != "NORMAL"
+            ]
         if self.config.combine_attacks:
             self.config.data_labels = ["ATTACK", "NORMAL"]
         self.label_counts = {}
@@ -103,6 +105,7 @@ class AdversarialDataPair:
             lbl[idx] = 1
             self.label_encoding[label] = lbl
         logger.info(f"Label encoding: {self.label_encoding}")
+
     def load_data(self):
         # load file names
         data_dir = self.config.data_dir
@@ -129,15 +132,15 @@ class AdversarialDataPair:
                                 label_files["ATTACK"] = []
                             label_files["ATTACK"].append(file)
                             break
-                        
+
                     else:
                         if label_str in file.stem:
-                            # this file belongs to this label                
+                            # this file belongs to this label
                             if label_str not in label_files:
                                 label_files[label_str] = []
                             label_files[label_str].append(file)
                             break
-                    
+
             label_counts = {label: len(files) for label, files in label_files.items()}
             logger.info(f"Label counts: {label_counts} for {adv_type}")
             max_label_count = max(label_counts.values())
@@ -187,10 +190,11 @@ class AdversarialDataPair:
         logger.info(
             f"Loaded adversarial files from {len(self.adversarial_type_npz_files)} types."
         )
-        
-        if self.config.attack_only:
-            self.config.data_labels = [l for l in self.config.data_labels if l != "NORMAL"]
 
+        if self.config.attack_only:
+            self.config.data_labels = [
+                l for l in self.config.data_labels if l != "NORMAL"
+            ]
 
         # make train data pair
         train_pair = AdversarialDataPair(
@@ -227,10 +231,10 @@ class AdversarialDataPair:
                                 label_files["ATTACK"] = []
                             label_files["ATTACK"].append(file)
                             break
-                        
+
                     else:
                         if label_str in file.stem:
-                            # this file belongs to this label                
+                            # this file belongs to this label
                             if label_str not in label_files:
                                 label_files[label_str] = []
                             label_files[label_str].append(file)
@@ -310,7 +314,7 @@ class AdversarialDataPair:
         ):
             noise_level = self.config.noise_range[1]
             mean_pix = input_image.mean()
-            noise = np.random.normal(0, noise_level, input_image.shape) * 255
+            noise = self.random_state.normal(0, noise_level, input_image.shape) * 255
             noise = np.clip(noise, -mean_pix, mean_pix)
             # print(noise.min(), noise.max())
 
@@ -358,11 +362,11 @@ if __name__ == "__main__":
     import os
 
     config = AdversarialDataPairConfig(
-        data_dir=Path(os.environ.get("DATA_DIR", "data/adv_samples"),
-        )
-    ,
-    attack_only=True
-    # combine_attacks=True,
+        data_dir=Path(
+            os.environ.get("DATA_DIR", "data/adv_samples"),
+        ),
+        attack_only=True,
+        # combine_attacks=True,
     )
     dataset = AdversarialDataPair(config)
     train_dataset, test_dataset = dataset.load_data()
@@ -371,7 +375,7 @@ if __name__ == "__main__":
     print(f"Test dataset size: {len(test_dataset)}")
 
     # Example of getting an item
-    input_img, target_img,label_tensor = TorchPairDataset(train_dataset)[0]
+    input_img, target_img, label_tensor = TorchPairDataset(train_dataset)[0]
     print(
         f"Input image shape: {input_img.shape}, Target image shape: {target_img.shape}, Label: {label_tensor.shape}"
     )
