@@ -127,6 +127,8 @@ class DFDataSet:
         # split the data into train and validation sets
         if self.config.train_ratio <= 0 or self.config.train_ratio >= 1:
             raise ValueError("train_ratio must be between 0 and 1 (exclusive).")
+        if len(self.config.labels):
+            self.data = self.data[self.data[self.config.label_column].isin(self.config.labels)]
 
         label_counts = self.data[self.config.label_column].value_counts()
         logger.info(f"Label counts in the dataset: {label_counts.to_dict()}")

@@ -22,7 +22,17 @@ class DataSetConfig(BaseModel):
         description="Column name in the CSV files that contains the labels.",
     )
     labels: list[str] = Field(
-        default=[],
+        default=[
+            "REPLAY",
+            "DNP3_INFO",
+            "DNP3_ENUMERATE",
+            "STOP_APP",
+            "NORMAL",
+            "INIT_DATA",
+            "COLD_RESTART",
+            "WARM_RESTART",
+            "DISABLE_UNSOLICITED",
+        ],
         description="List of labels to be used for classification.",
     )
     normal_label: str = Field(
