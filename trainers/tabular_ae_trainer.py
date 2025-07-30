@@ -9,39 +9,64 @@ import torch
 from pathlib import Path
 import os
 from loguru import logger
+import argparse
 
-project_dir = os.environ.get("PROJECT_DIR")
-if project_dir is None:
-    logger.warning(
-        "PROJECT_DIR environment variable not set, using default project directory."
-    )
-    project_dir = Path(r"C:\Users\Viper\Desktop\thesis_code")
-else:
-    project_dir = Path(project_dir)
-data_dir = os.environ.get("DATA_DIR")
-if data_dir is None:
-    logger.warning(
-        "DATA_DIR environment variable not set, using default data directory."
-    )
-    data_dir = Path(r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_attacks")
-else:
-    data_dir = Path(data_dir)
-batch_size = int(os.environ.get("BATCH_SIZE", 32))
-num_samples_per_epoch = int(os.environ.get("NUM_SAMPLES_PER_EPOCH", 10000))
+parser = argparse.ArgumentParser(description="Train DDSA FFNN model on adversarial tabular data.")
+parser.add_argument(
+    "--project_dir",
+    type=str,
+    default=os.environ.get("PROJECT_DIR", "/home/hpc/iwi7/iwi7101h/i7-IDS/"),
+    help="Path to the project directory.",
+)
+parser.add_argument(
+    "--data_dir",
+    type=str,
+    default=os.environ.get("DATA_DIR", "/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_attacks/original_cnn"),
+    help="Path to the data directory.",
+)
+parser.add_argument(
+    "--batch_size",
+    type=int,
+    default=int(os.environ.get("BATCH_SIZE", 128)),
+    help="Batch size for training.",
+)
+parser.add_argument(
+    "--num_samples_per_epoch",
+    type=int,
+    default=int(os.environ.get("NUM_SAMPLES_PER_EPOCH", 12800)),
+    help="Number of samples per epoch.",
+)
+args = parser.parse_args()
+
+project_dir = args.project_dir
+data_dir = args.data_dir
+batch_size = args.batch_size
+num_samples_per_epoch = args.num_samples_per_epoch
+
+project_dir = Path(project_dir)
+if not project_dir.exists():
+    logger.error(f"Project directory {project_dir} does not exist. Please check the path.")
+    exit(1)
+data_dir = Path(data_dir)
+if not data_dir.exists():
+    logger.error(f"Data directory {data_dir} does not exist. Please check the path.")
+    exit(1)
+
 if __name__ == "__main__":
-    model = DDSA_FFNN()
+    
     data_config = AdversarialDataPairConfig(
         data_dir=data_dir, num_samples_per_epoch=num_samples_per_epoch
     )
     train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
     val_ds.config.num_samples_per_epoch = int(num_samples_per_epoch * 0.15)
+    model = DDSA_FFNN(input_size=train_ds[0][0].shape[0])
     trainer = AETrainer(
         config=NNTrainerConfig(
             result_dir=project_dir / "results",
             expt_name="session_ae_experiment",
             run_name="ddsa_ffnn",
             epochs=1000,
-            batch_size=32,
+            batch_size=128,
             learning_rate=0.001,
             device="cuda" if torch.cuda.is_available() else "cpu",
             early_stopping_patience=50,
@@ -53,6 +78,7 @@ if __name__ == "__main__":
         train_dataset=TorchPairDataset(train_ds),
         val_dataset=TorchPairDataset(val_ds),
         criterion=torch.nn.MSELoss(reduction="mean"),
+
     )
     # no need to plot at end of epoch, as we will plot after training
     trainer.at_epoch_end = lambda: None

@@ -90,7 +90,7 @@ class AdversarialExperiment:
             average="macro",
         )
         logger.info(f"F1 Score on Original Images: {f1:.4f}")
-        cm = get_confusion_matrix(
+        _,cm = get_confusion_matrix(
             predictions,
             targets,
             self.train_dataset.label_encoding,
@@ -136,7 +136,7 @@ class AdversarialExperiment:
             )
 
             logger.info(f"F1 Score on Adversarial Examples: {f1:.4f}")
-            cm = get_confusion_matrix(
+            _,cm = get_confusion_matrix(
                 adv_predictions,
                 targets,
                 self.train_dataset.label_encoding,

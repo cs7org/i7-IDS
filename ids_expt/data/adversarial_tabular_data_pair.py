@@ -18,7 +18,7 @@ class AdversarialDataPairConfig(BaseModel):
         default=[
             ("basiciterativemethod_eps_0.1", 0.25),
             ("fastgradientmethod_eps_0.1", 0.25),
-            ("fastgradientmethod_eps_0.01", 0.25),
+            ("basiciterativemethod_eps_0.01", 0.25),
             ("fastgradientmethod_eps_0.01", 0.25),
         ],
         description="List of tuples with adversarial type and its selection rate. ",
@@ -38,8 +38,22 @@ class AdversarialDataPairConfig(BaseModel):
         description="Number of samples to use per epoch for training. -1 means use all available data.",
     )
     model_name: str = Field(
-        default="cic_cnn",
+        default="original_cnn",
         description="Name of the model to be used for training.",
+    )
+    labels: list[str] = Field(
+        default=[
+            "REPLAY",
+            "DNP3_INFO",
+            "DNP3_ENUMERATE",
+            "STOP_APP",
+            "NORMAL",
+            "INIT_DATA",
+            "COLD_RESTART",
+            "WARM_RESTART",
+            "DISABLE_UNSOLICITED",
+        ],
+        description="List of labels to be used for classification.",
     )
 
 
@@ -55,6 +69,9 @@ class AdversarialDataPair:
             adv_type: [] for adv_type, _ in self.adversarial_type_selection_rate
         }
         self.label_counts = {}
+        self.label_encoding = {
+            label: idx for idx, label in enumerate(config.labels)
+        }
 
     def load_data(self):
         # load file names
@@ -67,7 +84,7 @@ class AdversarialDataPair:
                 file for file in adv_npz_files if self.config.model_name in str(file)
             ]
             if not adv_npz_files:
-                logger.warning(f"No files found for adversarial type: {adv_type}")
+                logger.warning(f"No train files found for adversarial type: {adv_type}")
                 continue
 
             self.adversarial_type_npz_files[adv_type] = [
@@ -100,7 +117,7 @@ class AdversarialDataPair:
                 file for file in adv_npz_files if self.config.model_name in str(file)
             ]
             if not adv_npz_files:
-                logger.warning(f"No files found for adversarial type: {adv_type}")
+                logger.warning(f"No valid files found for adversarial type: {adv_type}")
                 continue
             self.adversarial_type_npz_files[adv_type] = [
                 np.load(file) for file in adv_npz_files
@@ -175,6 +192,7 @@ class TorchPairDataset(torch.utils.data.Dataset):
         return (
             torch.from_numpy(input_img).float(),
             torch.from_numpy(target_img).float(),
+            torch.tensor(label).to(torch.float32),
         )
 
 
@@ -189,7 +207,7 @@ if __name__ == "__main__":
         data_dir=Path(
             os.environ.get(
                 "DATA_DIR",
-                r"C:\Users\Viper\Desktop\thesis_code\results\adversarial_attacks",
+                r"/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_attacks/tabular/original_cnn",
             )
         )
     )

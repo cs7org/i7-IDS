@@ -26,10 +26,9 @@ from ids_expt.data.dataset import (
 from ids_expt.core.defs import TOP_FEATURES, TOP_CIC_FEATURES
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from tabpfn import TabPFNClassifier
-from tabpfn_extensions.many_class import ManyClassClassifier
+from pytorch_tabnet.tab_model import TabNetClassifier
 import numpy as np
-
+import torch
 
 def plot_classification_report(y_true, y_pred, labels, title, save_path):
     cm = confusion_matrix(y_true, y_pred, labels=labels)
@@ -132,12 +131,23 @@ if __name__ == "__main__":
             df_test.to_csv("cic_merged_test_data.csv", index=False)
 
         unique_labels = sorted(y_val.unique())
-        base_clf = TabPFNClassifier(ignore_pretraining_limits=True, device="cpu")
-        # many_clf = ManyClassClassifier(base_clf, alphabet_size=10)
-        # TabPFNClassifier(ignore_pretraining_limits=True)
-
+        
+        clf = TabNetClassifier(    optimizer_fn=torch.optim.Adam,
+    optimizer_params=dict(lr=2e-2),
+    scheduler_params={"step_size":10, # how to use learning rate scheduler
+                      "gamma":0.9},
+    scheduler_fn=torch.optim.lr_scheduler.StepLR,
+    mask_type='sparsemax' # This will be overwritten if using pretrain model
+    )
+        clf.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)]
+        )
+        preds = clf.predict(X_val)
+        logger.info(f"TabNet Classifier Predictions: {preds}")
+        
+        continue
         for model in [
-            base_clf,
             RandomForestClassifier(n_estimators=100, random_state=42),
             GaussianNB(),
             DecisionTreeClassifier(random_state=42),

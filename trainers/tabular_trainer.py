@@ -10,7 +10,7 @@ if __name__ == "__main__":
     from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
     from pathlib import Path
     from loguru import logger
-    from ids_expt.core.defs import TOP_CIC_FEATURES
+    from ids_expt.core.defs import TOP_CIC_FEATURES,TOP_FEATURES
     import argparse
     import pandas as pd
 
@@ -75,7 +75,8 @@ if __name__ == "__main__":
         weight_decay=1e-5,
         early_stopping_patience=500,
         log_mlflow=False,
-        optimizer="adamw",
+        optimizer="adam",
+        
         # best_model_metric="f1_score",
         # best_model_metric_greater=True,
     )
@@ -84,7 +85,8 @@ if __name__ == "__main__":
         csv_file = project_dir / "data/cic_ctgan_merged_synthetic_data.csv"
         use_synthetic = True
     else:
-        csv_file = project_dir / "data/cicflow_combined.csv"
+        csv_file = project_dir / "data/cicflow_combined.csv"        
+        csv_file = project_dir / "data/combined_120_timeout.csv"
         use_synthetic = False
 
     trainer_cfg.run_name = f"{model}_{'synthetic' if use_synthetic else 'original'}"
@@ -92,27 +94,32 @@ if __name__ == "__main__":
     train_dataset, val_dataset = DFDataSet(
         config=DataSetConfig(
             csv_path=csv_file,
-            features=TOP_CIC_FEATURES,
+            # features=TOP_CIC_FEATURES,
+            features=TOP_FEATURES,
+            # features=[],
             sampling_method=SamplingMethod.NONE,
             max_data=max_data,
             train_ratio=train_ratio,
             has_synthetic=use_synthetic,
         )
     ).get_datasets()
-
+    input_size = len(train_dataset.config.features)
+    logger.info(f"Input size: {input_size}, Model: {model}, Data type: {args.data_type}")
     if model == "cnn":
         model = CNN1D(
-            input_size=len(TOP_CIC_FEATURES),
+            # input_size=len(TOP_CIC_FEATURES),
+            input_size=input_size,
             output_size=val_dataset.data.Label.nunique(),
             use_batchnorm=True,
             dropout_rate=0.0,
         )
     elif model == "fnn":
         model = FFNN(
-            input_size=len(TOP_CIC_FEATURES),
-            hidden_layers=[32, 64, 128, 256, 512, 1024, 512, 256, 128, 64, 32],
+            # input_size=len(TOP_CIC_FEATURES),
+            input_size=input_size,
+            # hidden_layers=[32, 64, 128, 256, 512, 1024, 512, 256, 128, 64, 32],
             output_size=val_dataset.data.Label.nunique(),
-            use_batchnorm=True,
+            use_batchnorm=False,
             dropout_rate=0.0,
         )
 

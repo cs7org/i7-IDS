@@ -129,6 +129,24 @@ class DFDataSet:
             raise ValueError("train_ratio must be between 0 and 1 (exclusive).")
         if len(self.config.labels):
             self.data = self.data[self.data[self.config.label_column].isin(self.config.labels)]
+        if len(self.config.features) == 0:
+            # select all numeric columns except the label column
+            discard_cols=[ "Unnamed: 0",
+                        "Src Port",
+                        "Dst Port",
+                        "Protocol",
+                        "File",    
+                        "Unnamed: 0",
+                        "Unnamed: 0.1",
+                        "firstPacketDIR"]
+            numeric_cols = self.data.select_dtypes(include=[np.number]).columns.tolist()
+            numeric_cols = [col for col in numeric_cols if col not in discard_cols]
+            if self.config.label_column in numeric_cols:
+                numeric_cols.remove(self.config.label_column)
+            self.config.features = numeric_cols
+            logger.info(
+                f"No features specified. Using all columns except the label column: {self.config.features}"
+            )
 
         label_counts = self.data[self.config.label_column].value_counts()
         logger.info(f"Label counts in the dataset: {label_counts.to_dict()}")
@@ -144,7 +162,6 @@ class DFDataSet:
                 random_state=self.config.random_state,
             )
         else:
-
             train_df, validation_df = self.get_synthetic_train_val(self.data)
             logger.info(
                 f'Has Synthetic Counts (Train): {train_df["is_synthetic"].value_counts().to_dict()}'
@@ -170,7 +187,6 @@ class DFDataSet:
             )
             train_df = pd.DataFrame(X_train, columns=self.config.features)
             train_df[self.config.label_column] = y_train
-
         elif self.config.sampling_method == SamplingMethod.UNDERSAMPLE:
             logger.info("Applying RandomUnderSampler to the training dataset.")
             undersampler = RandomUnderSampler(random_state=self.config.random_state)
@@ -186,6 +202,8 @@ class DFDataSet:
         if self.config.normalization_method == NormalizationMethod.MIN_MAX:
             logger.info("Applying Min-Max normalization to the datasets.")
             scaler = MinMaxScaler()
+            logger.info(f'Features:{self.config.features}')
+            logger.info(f"Columns: {train_df.columns}")
             train_df[self.config.features] = scaler.fit_transform(
                 train_df[self.config.features]
             )
