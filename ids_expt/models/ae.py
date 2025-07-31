@@ -15,11 +15,11 @@ class DDSA_FFNN(nn.Module):
     def __init__(
         self,
         input_size: int = 37,
-        hidden_sizes: list = [16, 32, 64, 128],
-        bottleneck_dim: int = 128,
+        hidden_sizes: list = [16, 32, 64, 128, 256],
+        bottleneck_dim: int = 32,
         sparsity_lambda: float = 1e-4,
         sparsity_target: float = 0.05,
-        dropout_rate: float = 0.25,
+        dropout_rate: float = 0.05,
     ):
         """
         Deep Denoising Sparse Autoencoder (DDSA) - Feedforward Neural Network

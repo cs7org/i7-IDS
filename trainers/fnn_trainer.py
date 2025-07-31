@@ -273,7 +273,7 @@ model.to(device)
 criterion = nn.CrossEntropyLoss(weight=torch.tensor(list(class_weights.values()), device=device)) 
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
 scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=5)
-num_epochs = 1000
+num_epochs = 2000
 log_every = 1
 # --- Training loop ---
 train_losses = []
@@ -339,7 +339,8 @@ for epoch in range(num_epochs):
         torch.save(model.state_dict(), result_dir / "best_model.pth")
         logger.info(f"New best model saved at {result_dir} epoch {epoch} with F1 {f1:.4f}")
         torch.save(model, result_dir / "best_model_full.pth")
-
+    torch.save(model.state_dict(), result_dir / "last_model.pth")
+    torch.save(model, result_dir / "last_model_full.pth")
     metrics['test_loss'].append(loss)
     metrics['test_acc'].append(acc)
     metrics['test_f1'].append(f1)

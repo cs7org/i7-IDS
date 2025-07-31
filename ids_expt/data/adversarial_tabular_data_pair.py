@@ -16,15 +16,15 @@ class AdversarialDataPairConfig(BaseModel):
     # here, str will be {adv_alg}_{epsilon}
     adversarial_type_selection_rate: list[tuple[str, float]] = Field(
         default=[
-            ("basiciterativemethod_eps_0.1", 0.25),
-            ("fastgradientmethod_eps_0.1", 0.25),
-            ("basiciterativemethod_eps_0.01", 0.25),
-            ("fastgradientmethod_eps_0.01", 0.25),
+            ("basiciterativemethod_eps_0.1", 0.5),
+            ("fastgradientmethod_eps_0.1", 0.2),
+            ("basiciterativemethod_eps_0.01", 0.15),
+            ("fastgradientmethod_eps_0.01", 0.15),
         ],
         description="List of tuples with adversarial type and its selection rate. ",
     )
     clean_selection_rate: float = Field(
-        default=0.5,
+        default=0.3,
         description="Selection rate for clean images",
     )
 

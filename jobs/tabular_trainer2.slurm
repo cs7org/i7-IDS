@@ -16,8 +16,8 @@ pip install -e .
 
 export PROJECT_DIR="$HOME/i7-IDS"
 
-# python3 $HOME/i7-IDS/trainers/fnn_trainer.py --project_dir $PROJECT_DIR --model fnn &
-# python3 $HOME/i7-IDS/trainers/fnn_trainer.py --project_dir $PROJECT_DIR --model cnn
+python3 $HOME/i7-IDS/trainers/fnn_trainer.py --project_dir $PROJECT_DIR --model fnn &
+python3 $HOME/i7-IDS/trainers/fnn_trainer.py --project_dir $PROJECT_DIR --model cnn
 
-# python3 $HOME/i7-IDS/adversarial/generate_tabular.py --project_dir $PROJECT_DIR --models original_cnn &
-# python3 $HOME/i7-IDS/adversarial/generate_tabular.py --project_dir $PROJECT_DIR --models original_fnn
+python3 $HOME/i7-IDS/adversarial/generate_tabular.py --project_dir $PROJECT_DIR --models original_cnn &
+python3 $HOME/i7-IDS/adversarial/generate_tabular.py --project_dir $PROJECT_DIR --models original_fnn

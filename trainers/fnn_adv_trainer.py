@@ -95,10 +95,21 @@ labels = [
             "WARM_RESTART",
             "DISABLE_UNSOLICITED",
         ]
-
+class_weights = {
+    "REPLAY": 2.3268327713012695,
+    "DNP3_INFO": 0.6492278575897217,
+    "DNP3_ENUMERATE": 0.5834585428237915,
+    "STOP_APP": 2.2812085151672363,
+    "NORMAL": 0.10969416797161102,
+    "INIT_DATA": 2.241649866104126,
+    "COLD_RESTART": 0.26930931210517883,
+    "WARM_RESTART": 0.26930931210517883,
+    "DISABLE_UNSOLICITED": 0.26930931210517883,
+}
 data_config = AdversarialDataPairConfig(
 data_dir=args.data_dir, 
-num_samples_per_epoch=args.max_data
+num_samples_per_epoch=args.max_data,
+
 )
 train_ds, val_ds = AdversarialDataPair(config=data_config).load_data()
 val_ds.config.num_samples_per_epoch = int(args.max_data * 0.15)
@@ -127,7 +138,7 @@ model.to(device)
 
 
 # --- Training setup ---
-criterion = nn.CrossEntropyLoss() 
+criterion = nn.CrossEntropyLoss(weight=torch.tensor(list(class_weights.values()), device=device)) 
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
 scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=5)
 num_epochs = 1000
@@ -195,6 +206,8 @@ for epoch in range(num_epochs):
         torch.save(model.state_dict(), result_dir / "best_model.pth")
         logger.info(f"New best model saved at {result_dir} epoch {epoch} with F1 {f1:.4f}")
         torch.save(model, result_dir / "best_model_full.pth")
+    torch.save(model.state_dict(), result_dir / "last_model.pth")
+    torch.save(model, result_dir / "last_model_full.pth")
 
     metrics['test_loss'].append(loss)
     metrics['test_acc'].append(acc)
