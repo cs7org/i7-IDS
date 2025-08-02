@@ -6,8 +6,6 @@ from torch import nn
 from kornia.losses import SSIMLoss
 
 
-from kornia.losses import SSIMLoss
-
 
 class AdversarialPurificationLoss(nn.Module):
     def __init__(
