@@ -232,21 +232,7 @@ class_weights = {
     "WARM_RESTART": 0.26930931210517883,
     "DISABLE_UNSOLICITED": 0.26930931210517883,
 }
-# train_dataset, val_dataset = DFDataSet(
-#         config=DataSetConfig(
-#             csv_path=csv_file,
-#             features=TOP_CIC_FEATURES,
-#             # features=TOP_FEATURES,
-#             # features=[],
-#             sampling_method=SamplingMethod.NONE,
-#             max_data=max_data,
-#             train_ratio=0.8,
-#             has_synthetic=False,
-#         )
-#     ).get_datasets()
-
-# train_loader = DataLoader(CLFDataSet(train_dataset), batch_size=batch_size, shuffle=True)
-# test_loader = DataLoader(CLFDataSet(val_dataset), batch_size=batch_size)
+class_weights = {k: 1 for k, v in class_weights.items()}
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(val_dataset, batch_size=batch_size)
@@ -266,8 +252,8 @@ if args.model == "cnn":
     model = CNN1D(input_size=input_dim, output_size=output_dim)
 elif args.model == "fnn":
     model = FFNN(input_size=input_dim, output_size=output_dim)
-model.to(device)
 
+model.to(device)
 
 # --- Training setup ---
 criterion = nn.CrossEntropyLoss(weight=torch.tensor(list(class_weights.values()), device=device)) 

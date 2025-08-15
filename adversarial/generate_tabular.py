@@ -69,6 +69,8 @@ parser.add_argument(
     default="original",
     help="Type of data to use for training. Options are 'original' or 'synthetic'.",
 )
+
+
 class CustomDataset(Dataset):
     def __init__(
         self,
@@ -109,8 +111,8 @@ class CustomDataset(Dataset):
         )
         # scale the features
         scaler = MinMaxScaler()
-        self.features = scaler.fit_transform(self.df.drop(columns=[self.labels_key]))
-        self.labels = self.df[self.labels_key].values
+        self.features = scaler.fit_transform(train_df.drop(columns=[self.labels_key]))
+
         if self.split == "train":
             self.features = scaler.transform(train_df.drop(columns=[self.labels_key]))
             self.labels = train_df[self.labels_key].values
@@ -168,6 +170,7 @@ else:
     use_synthetic = False
 # overridding it fir now
 csv_file = Path(args.project_dir) / "data/cicflow_combined.csv"
+# csv_file = Path(args.project_dir) / "data/cic_ctgan_merged_synthetic_data.csv"
 # combined_df = pd.read_csv(f'{args.project_dir}/data/combined_120_timeout.csv')
 combined_df = pd.read_csv(csv_file)
 combined_df.columns = combined_df.columns.str.strip()
@@ -215,35 +218,6 @@ for model_path in model_paths:
     if not model_path.exists():
         logger.error(f"Model path {model_path} does not exist.")
         exit(1)
-
-    # train_dataset, val_dataset = DFDataSet(
-    #     config=DataSetConfig(
-    #         csv_path=csv_file,
-    #         features=TOP_CIC_FEATURES,
-    #         max_data=max_data,
-    #         train_ratio=0.8,
-    #         # labels=[
-    #         #     "ARP_POISONING",
-    #         #     "COLD_RESTART",
-    #         #     "DISABLE_UNSOLICITED",
-    #         #     "DNP3_ENUMERATE",
-    #         #     "DNP3_INFO",
-    #         #     "INIT_DATA",
-    #         #     "MITM_DOS",
-    #         #     "NORMAL",
-    #         #     "REPLAY",
-    #         #     "STOP_APP",
-    #         #     "WARM_RESTART",
-    #         # ],
-    #     )
-    # ).get_datasets()
-
-    # val_dataset.data = val_dataset.data.query("is_synthetic != True")
-
-    # write val data
-    # val_dataset.data.to_csv(
-    #     project_dir / "data/val_data2.csv", index=False, header=True
-    # )
 
     val_dataset = val_dataset
     val_dataset.num_classes = len(labels)
