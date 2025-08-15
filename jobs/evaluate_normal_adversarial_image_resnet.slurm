@@ -17,7 +17,7 @@ pip install -e .
 ## Normal ##
 
 # Set up directories
-INPUT_ROOT="$WORK/i7-IDS/results/adversarial_attacks/mobilenet_v3_large_nosampling"
+INPUT_ROOT="$WORK/i7-IDS/results/adversarial_attacks/resnet18_nosampling"
 OUTPUT_ROOT="$TMPDIR"
 DATA_SPLIT="val"
 

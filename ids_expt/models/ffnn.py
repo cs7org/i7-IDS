@@ -40,7 +40,7 @@ class FFNN(torch.nn.Module):
         hidden_layers: list[int] = [90] * 10,
         output_size: int = 9,
         dropout_rate: float = 0.0,
-        use_batchnorm: bool = True,
+        use_batchnorm: bool = False,
     ):
         super(FFNN, self).__init__()
         layers = []
