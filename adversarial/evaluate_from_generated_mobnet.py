@@ -205,46 +205,46 @@ labels = [
 ]
 
 clf_adv_ae_models = [
-    # [
-    #     Path("image_classification/resnet18_nosampling"),
-    #     Path("image_classification/resnet18_nosampling_adv"),
-    #     Path("autoencoder/rdunet_normal_no_clf"),
-    # ],
-    # [
-    #     Path("image_classification/resnet18_normalized_nosampling"),
-    #     Path("image_classification/resnet18_normalized_nosampling_adv"),
-    #     Path("autoencoder/rdunet_normalized_no_clf"),
-    # ],
     [
-        Path("image_classification/mobilenet_v3_large_nosampling"),
-        Path("image_classification/mobilenet_v3_large_nosampling_adv"),
+        Path("image_classification/resnet18_nosampling"),
+        Path("image_classification/resnet18_nosampling_adv"),
         Path("autoencoder/rdunet_normal_no_clf"),
     ],
     [
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
+        Path("image_classification/resnet18_normalized_nosampling"),
+        Path("image_classification/resnet18_normalized_nosampling_adv"),
         Path("autoencoder/rdunet_normalized_no_clf"),
     ],
     # [
-    #     Path("image_classification/resnet18_nosampling"),
-    #     Path("image_classification/resnet18_nosampling_adv"),
-    #     Path("autoencoder/unet_custom_normal_no_clf"),
+    #     Path("image_classification/mobilenet_v3_large_nosampling"),
+    #     Path("image_classification/mobilenet_v3_large_nosampling_adv"),
+    #     Path("autoencoder/rdunet_normal_no_clf"),
     # ],
     # [
-    #     Path("image_classification/resnet18_normalized_nosampling"),
-    #     Path("image_classification/resnet18_normalized_nosampling_adv"),
-    #     Path("autoencoder/unet_custom_normalized_no_clf"),
+    #     Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
+    #     Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
+    #     Path("autoencoder/rdunet_normalized_no_clf"),
     # ],
     [
-        Path("image_classification/mobilenet_v3_large_nosampling"),
-        Path("image_classification/mobilenet_v3_large_nosampling_adv"),
+        Path("image_classification/resnet18_nosampling"),
+        Path("image_classification/resnet18_nosampling_adv"),
         Path("autoencoder/unet_custom_normal_no_clf"),
     ],
     [
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
-        Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
+        Path("image_classification/resnet18_normalized_nosampling"),
+        Path("image_classification/resnet18_normalized_nosampling_adv"),
         Path("autoencoder/unet_custom_normalized_no_clf"),
     ],
+    # [
+    #     Path("image_classification/mobilenet_v3_large_nosampling"),
+    #     Path("image_classification/mobilenet_v3_large_nosampling_adv"),
+    #     Path("autoencoder/unet_custom_normal_no_clf"),
+    # ],
+    # [
+    #     Path("image_classification/mobilenet_v3_large_normalized_nosampling"),
+    #     Path("image_classification/mobilenet_v3_large_normalized_nosampling_adv"),
+    #     Path("autoencoder/unet_custom_normalized_no_clf"),
+    # ],
 ]
 
 skip_adversarial_names = ["Carlini", "DeepFool"]
