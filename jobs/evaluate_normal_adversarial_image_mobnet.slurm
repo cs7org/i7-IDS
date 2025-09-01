@@ -79,7 +79,8 @@ done
 echo "All adversarial samples processed!"
 echo "Output location: $ADV_SAMPLES_DIR/$ADV_GEN_MODEL"
 
-python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_mobnet.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal
+python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_mobnet.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal --output_dir "/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_blocking_mobnet"
+python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_mobnet.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal --output_dir "/home/hpc/iwi7/iwi7101h/i7-IDS/results/adversarial_blocking_mobnet_no_clf"
 
 # python /home/hpc/iwi7/iwi7101h/i7-IDS/adversarial/evaluate_from_generated_binary.py --adv_gen_model $ADV_GEN_MODEL --data_dir $ADV_SAMPLES_DIR/$ADV_GEN_MODEL --batch_size 16 --data_type normal
 
