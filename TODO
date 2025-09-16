@@ -1,6 +1,0 @@
-## Checklist
-**REPRODUCIBILITY IS MUST**
-
-- [ ] Try to use `argparse` instead of making individual files for training/generating.
-- [ ] Use docstring and add comments where applicable.
-- [ ] Create a clear documentation (in [docs](docs/)) for detailed experiments. This will help in writing thesis Methodology!
