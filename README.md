@@ -23,7 +23,6 @@
 * Dataset for session image data: [ids_expt/data/session_image_dataset.py](ids_expt/data/session_image_dataset.py).
 * Trainer: [ids_expt/models/trainer.py](ids_expt/models/trainer.py). A single trainer to train all models but this is used by other modules in [/trainers/](/trainers/).
 
-
 ### Baseline Model Training
 * First baseline model is from the [Data Authors](https://ieeexplore.ieee.org/document/9881726).
 * Then [trainers/fnn_trainer.py](trainers/fnn_trainer.py) trains baseline MLP. 
