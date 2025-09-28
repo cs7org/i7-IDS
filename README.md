@@ -25,13 +25,13 @@
 
 ### Baseline Model Training
 * First baseline model is from the [Data Authors](https://ieeexplore.ieee.org/document/9881726).
-* Then [trainers/fnn_trainer.py](trainers/fnn_trainer.py) trains baseline MLP. 
+* Then [trainers/fnn_trainer.py](trainers/fnn_trainer.py). **It also trains CNN1D.** 
 * Arguments can be passed. Slurm file: [jobs/tabular_trainer2.slurm](jobs/tabular_trainer2.slurm)
 
 ### Image Based Model Training
 * [trainers/session_image_trainer_backbone.py](trainers/session_image_trainer_backbone.py) trains the MobileNet or ResNet based attack classifiers based on session images. 
 * Arguments can be passed. Slurm file: [jobs/mobilenet_trainer.slurm](jobs/mobilenet_trainer.slurm)
-* ResNet18 could be also used but not necessary.
+* ResNet18 could be also used but not necessary. Why? Because MobileNet is already better.
 
 ### Adversarial Generation
 * [adversarial/generate_adversarial_image.py](adversarial/generate_adversarial_image.py) generates the adversarial data using the session images and trained models.
@@ -39,16 +39,16 @@
 
 ## Evaluation
 All files are inside [adversarial](adversarial).
-
-* [adversarial\evaluate_from_generated_mobnet.py](adversarial\evaluate_from_generated_mobnet.py) performs evaluation on the adversarial image sample generated in previous step.
-* [adversarial\evaluate_from_generated_tabular.py](adversarial\evaluate_from_generated_tabular.py) performs evaluation on the adversarial tabular sample generated in previous step.
-* For benchmarking, [adversarial\benchmark.py](adversarial\benchmark.py) for image based IDS models and [adversarial\benchmark_tabular.py](adversarial\benchmark_tabular.py) for tabular IDS.
+* A notebook [notebooks/image_feature_importance.ipynb](notebooks/image_feature_importance.ipynb) generates saliency map.
+* [adversarial/evaluate_from_generated_mobnet.py](adversarial/evaluate_from_generated_mobnet.py) performs evaluation on the adversarial image sample generated in previous step.
+* [adversarial/evaluate_from_generated_tabular.py](adversarial/evaluate_from_generated_tabular.py) performs evaluation on the adversarial tabular sample generated in previous step.
+* For benchmarking, [adversarial/benchmark.py](adversarial/benchmark.py) for image based IDS models and [adversarial/benchmark_tabular.py](adversarial/benchmark_tabular.py) for tabular IDS.
 
 These evaluate files creates result CSV files (and sample images).
 
 ### Generating Plots
-* Using [notebooks\report_generation_mobnetonly.ipynb](notebooks\report_generation_mobnetonly.ipynb) for image based IDS.
-* Using [notebooks\report_generation_tabular.ipynb](notebooks\report_generation_tabular.ipynb) for tabular.
+* Using [notebooks/report_generation_mobnetonly.ipynb](notebooks/report_generation_mobnetonly.ipynb) for image based IDS.
+* Using [notebooks/report_generation_tabular.ipynb](notebooks/report_generation_tabular.ipynb) for tabular.
 
 ## Debug on HPC
 * `salloc.tinygpu --gres=gpu:1 --time=01:00:00`
@@ -57,12 +57,18 @@ These evaluate files creates result CSV files (and sample images).
 * Quota: `shownicerquota.pl`
 
 ## Misc Experiments
-These are not being used in the final paper and presentation.
+**These are not being used in the final paper and presentation. Because these are only for tabular and later focus turned into image based IDS.** 
 
 ### Feature Importance
-Based on [Permutation Feature Importance](https://christophm.github.io/interpretable-ml-book/feature-importance.html). [This](https://pmc.ncbi.nlm.nih.gov/articles/PMC8323609/pdf/nihms-1670270.pdf) is also a good read.
+First the goal was to find a best feature importance extractor method. **Feature importance could vary for each attack.** Methods experimented with are:
+* AutoEncoder: Implemented in [feature_importance/run_ae.py](feature_importance/run_ae.py). 
+* PCA: Implemented in [feature_importance/run_pca.py](feature_importance/run_pca.py)
+* [Permutation Feature Importance](https://christophm.github.io/interpretable-ml-book/feature-importance.html): Implemented in [feature_importance/run_pfi.py](feature_importance/run_pfi.py).
+* Recursive Feature Elimination: Implemented in [feature_importance/run_rfe.py](feature_importance/run_rfe.py)
 
-**Feature importance could vary for each attack.**
+Best one was PFI. A visualization is available in notebook [notebooks/feature_importance.ipynb](notebooks/feature_importance.ipynb) esp. in section **Read Previous Results**.
+
+[This](https://pmc.ncbi.nlm.nih.gov/articles/PMC8323609/pdf/nihms-1670270.pdf) is also a good read. 
 
 ### Imbalance Handling
 * Synthetic Data generation to oversample data based on [CTGAN](https://arxiv.org/html/2410.16326v1). 
@@ -72,3 +78,6 @@ Based on [Permutation Feature Importance](https://christophm.github.io/interpret
 
 ### Classification in Tabular Data
 * `tabpfn` looks great. `pip install "tabpfn-extensions[all] @ git+https://github.com/PriorLabs/tabpfn-extensions.git"`
+
+### Reproducing Results
+An attempt was made to reproduce results from some research work done on tabular data. See notebook [notebooks/reproducing_results.ipynb](notebooks/reproducing_results.ipynb).
