@@ -37,6 +37,7 @@ setup(
         "adversarial-robustness-toolbox==1.20.0",
         "pytorch_ssim",
         "pynvml",
-"ptflops"
+        "ptflops",
+        "segmentation-models-pytorch==0.5.0",
     ],
 )
