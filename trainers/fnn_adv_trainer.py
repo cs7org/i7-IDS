@@ -1,25 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from loguru import logger
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import f1_score
 import argparse
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from ids_expt.models.cnn import CNN1D
-from ids_expt.models.ffnn import FFNN, DNP3DNN
-from ids_expt.core.defs import TOP_CIC_FEATURES,TOP_FEATURES
-from ids_expt.data.dataset import (
-        DataSetConfig,
-        SamplingMethod,
-        CLFDataSet,
-        DFDataSet,
-    )
-from sklearn.model_selection import train_test_split
+from ids_expt.models.ffnn import FFNN
 import os
 from ids_expt.data.adversarial_tabular_data_pair import (
     AdversarialDataPairConfig,

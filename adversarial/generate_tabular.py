@@ -5,31 +5,12 @@ import torch
 from ids_expt.adversarial.adversarial_experiment import AdversarialExperiment, ClfModel
 from art.attacks.evasion import FastGradientMethod, BasicIterativeMethod,MomentumIterativeMethod
 from art.estimators.classification import PyTorchClassifier
-from ids_expt.data.dataset import (
-    DataSetConfig,
-    SamplingMethod,
-    CLFDataSet as DataSet,
-    DFDataSet,
-)
 import argparse
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
-from pathlib import Path
-from loguru import logger
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import f1_score
-import argparse
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from ids_expt.models.cnn import CNN1D
-from ids_expt.models.ffnn import FFNN, DNP3DNN
-from ids_expt.core.defs import TOP_CIC_FEATURES,TOP_FEATURES,DataType
-from ids_expt.data.dataset import (
-        DataSetConfig,
-        SamplingMethod,
-        CLFDataSet,
-        DFDataSet,
-    )
+from ids_expt.core.defs import TOP_CIC_FEATURES,DataType
 from sklearn.model_selection import train_test_split
 
 # Argument parser for project dir, max_data, and model paths

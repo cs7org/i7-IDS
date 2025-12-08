@@ -11,14 +11,7 @@ from sklearn.metrics import f1_score
 import argparse
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from ids_expt.models.cnn import CNN1D
-from ids_expt.models.ffnn import FFNN, DNP3DNN
-from ids_expt.core.defs import TOP_CIC_FEATURES,TOP_FEATURES
-from ids_expt.data.dataset import (
-        DataSetConfig,
-        SamplingMethod,
-        CLFDataSet,
-        DFDataSet,
-    )
+from ids_expt.models.ffnn import FFNN
 from sklearn.model_selection import train_test_split
 
 

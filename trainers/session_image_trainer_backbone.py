@@ -3,14 +3,11 @@ from ids_expt.data.session_image_dataset import (
     SessionImageDataConfig,
     DFDataSet,
     TorchImageDataset,
-    SamplingMethod,
 )
-from ids_expt.models.cnn import CNN2D as BiggerCNN2D
 from ids_expt.models.image_model import ImageClfModel
 import torch
 from pathlib import Path
 from loguru import logger
-import os
 import argparse
 import cv2
 import numpy as np

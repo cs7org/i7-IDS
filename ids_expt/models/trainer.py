@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from pathlib import Path
 import joblib
-from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score, AUROC
+from torchmetrics import MetricCollection, Accuracy, Precision, Recall, F1Score
 from collections import defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt

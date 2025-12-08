@@ -10,9 +10,8 @@ if __name__ == "__main__":
     from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
     from pathlib import Path
     from loguru import logger
-    from ids_expt.core.defs import TOP_CIC_FEATURES,TOP_FEATURES
+    from ids_expt.core.defs import TOP_FEATURES
     import argparse
-    import pandas as pd
 
     # Argument parser for project dir, max_data, and model paths
     parser = argparse.ArgumentParser(

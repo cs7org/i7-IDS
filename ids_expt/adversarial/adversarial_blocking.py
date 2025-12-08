@@ -3,7 +3,6 @@ from art.attacks.evasion.projected_gradient_descent.projected_gradient_descent i
     ProjectedGradientDescent,
 )
 from loguru import logger
-from art.estimators.classification import PyTorchClassifier
 from ids_expt.utils.confusion_matrix import get_confusion_matrix
 from pathlib import Path
 from ids_expt.data.session_image_dataset import (

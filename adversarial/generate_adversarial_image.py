@@ -11,9 +11,6 @@ from art.attacks.evasion import (
     FastGradientMethod,
     BasicIterativeMethod,
     CarliniL2Method,
-    DeepFool,
-    ShadowAttack,
-    SaliencyMapMethod,
     MomentumIterativeMethod,
 )
 from art.estimators.classification import PyTorchClassifier

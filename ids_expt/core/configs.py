@@ -5,7 +5,6 @@ from ids_expt.core.defs import (
     NormalizationMethod,
     MetricType,
     TOP_FEATURES,
-    TOP_CIC_FEATURES,
 )
 from ids_expt.core.defs import Optimizer
 

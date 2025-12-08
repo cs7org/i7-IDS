@@ -3,7 +3,6 @@ import cv2
 from pathlib import Path
 from loguru import logger
 import pandas as pd
-import os
 import argparse
 import numpy as np
 import tqdm

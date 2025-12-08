@@ -1,7 +1,6 @@
 from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
 from ids_expt.data.adversarial_data_pair import AdversarialDataPair
 import torch
-from loguru import logger
 
 
 class AdvTrainer(NNTrainer):

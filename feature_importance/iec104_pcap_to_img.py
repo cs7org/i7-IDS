@@ -5,7 +5,6 @@ from scapy.all import Packet
 import numpy as np
 from scapy.all import IP, TCP, Ether, raw, wrpcap
 import cv2
-import json
 from tqdm import tqdm
 from scapy.utils import RawPcapReader
 import pandas as pd

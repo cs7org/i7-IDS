@@ -1,16 +1,10 @@
-from sdv.single_table import TVAESynthesizer
 from sdv.metadata import SingleTableMetadata
 from sdv.single_table import CTGANSynthesizer
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from ids_expt.core.defs import TOP_FEATURES, TOP_CIC_FEATURES
+from ids_expt.core.defs import TOP_CIC_FEATURES
 from pathlib import Path
 from loguru import logger
 
-from sdv.metadata import SingleTableMetadata
-from sdv.single_table import CTGANSynthesizer
-import pandas as pd
-from sklearn.model_selection import train_test_split
 from sdv.evaluation.single_table import run_diagnostic
 from sdv.evaluation.single_table import evaluate_quality
 import numpy as np

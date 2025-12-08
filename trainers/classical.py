@@ -6,7 +6,6 @@ from loguru import logger
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
-    ConfusionMatrixDisplay,
     accuracy_score,
     precision_score,
     recall_score,
@@ -16,11 +15,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from ids_expt.models.ffnn import FFNN
 from ids_expt.data.dataset import (
     DataSetConfig,
     SamplingMethod,
-    CLFDataSet as DataSet,
     DFDataSet,
 )
 from ids_expt.core.defs import TOP_FEATURES, TOP_CIC_FEATURES

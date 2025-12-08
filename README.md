@@ -1,20 +1,28 @@
 # Enhancing Smart Grid Security: A Deep Learning Approach to Adversarial Intrusion Detection
+
+![](assets/ids_flow.png)
+Proposed IDS flow diagram.
+
 ## Setting Up
 1. Download the dataset DNP3 Intrusion Detection Dataset from [Zenodo](https://zenodo.org/records/7348493)
 2. Unzip and copy all the CSV files related to CICFlowmeter and paste in a single folder.
 3. These files will be the main data files.
-4. Read all files and combine them all together in a single CSV file. This file will be used to train models.
+4. Read all files and combine them all together in a single CSV file. Relevant [script](feature_importance/combine_csv.py).
 5. Install this project as `pip install -e .` and all its requirements too.
 
 
 ## PCAP to Image
+
+![](assets/pkt_to_arr.png)
+A packet to array creation steps.
+
 * Read the CSV file for 120s Timeout and the corresponding PCAP files.
 * For each CSV:
     * Read each row.
     * Find the matching packets in the PCAP file.
     * Call matched packets session and assign the label to it.
     * Convert session to image.
-* Main script is: [feature_importance/dnp3_pcap_to_img.py](feature_importance/dnp3_pcap_to_img.py) and all others are there when some experiments were done but not needed to reproduce the results. It needs mapping file between CSV and PCAP file and are inside [notebooks](notebooks/).
+* Main script is: [feature_importance/dnp3_pcap_to_img.py](feature_importance/dnp3_pcap_to_img.py) and all others are there when some experiments were done but not needed to reproduce the results. It needs mapping file between CSV and PCAP file and are inside [assets](assets/).
 
 ## Model Training
 * PyTorch 2.5.0 with GPU.
@@ -38,6 +46,10 @@
 * Arguments can be passed. Slurm file: [jobs/adversarial_generator_mobilenet.slurm](jobs/adversarial_generator_mobilenet.slurm).
 
 ## Evaluation
+
+![](assets/ids_eval.png)
+A proposed evaluation plan.
+
 All files are inside [adversarial](adversarial).
 * A notebook [notebooks/image_feature_importance.ipynb](notebooks/image_feature_importance.ipynb) generates saliency map.
 * [adversarial/evaluate_from_generated_mobnet.py](adversarial/evaluate_from_generated_mobnet.py) performs evaluation on the adversarial image sample generated in previous step.

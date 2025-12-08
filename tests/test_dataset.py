@@ -1,5 +1,4 @@
-from ids_expt.data.dataset import DFDataSet, DataSetConfig, SamplingMethod, DataType
-import pytest
+from ids_expt.data.dataset import DFDataSet, DataSetConfig, SamplingMethod
 import pandas as pd
 import os
 from pathlib import Path

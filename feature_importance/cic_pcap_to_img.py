@@ -1,13 +1,11 @@
 from pathlib import Path
 from loguru import logger
-from dataclasses import dataclass
 from scapy.all import Packet
 import numpy as np
 from scapy.all import IP, TCP, Ether, raw
 import cv2
 import json
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from scapy.utils import RawPcapReader
 import pandas as pd
 from scapy.layers.inet import IP, TCP, UDP, Ether

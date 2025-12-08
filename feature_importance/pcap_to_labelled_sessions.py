@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 import json
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 from loguru import logger
 
 map_file = Path(r"E:\MSc Works\IDS\notebooks\cic_file_mapping.json")

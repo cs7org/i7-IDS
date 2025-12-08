@@ -11,7 +11,6 @@ from ids_expt.data.dataset import (
 from ids_expt.core.defs import TOP_CIC_FEATURES
 from ids_expt.models.trainer import NNTrainer, NNTrainerConfig
 from datetime import datetime
-import torch
 
 # TOP_CIC_FEATURES = [c for c in TOP_CIC_FEATURES if "Port" not in c]
 

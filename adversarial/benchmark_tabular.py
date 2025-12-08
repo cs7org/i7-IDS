@@ -170,4 +170,4 @@ if __name__ == "__main__":
     import pandas as pd
     df_data = pd.DataFrame([item for sublist in final_results for item in sublist])
     df_data.to_csv('results/benchmark_tabular_results.csv', index=False)
-    logger.info(f"Results saved to results/benchmark_tabular_results.csv")
+    logger.info("Results saved to results/benchmark_tabular_results.csv")

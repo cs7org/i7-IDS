@@ -7,7 +7,6 @@ from loguru import logger
 import time
 from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
-import torch.nn.functional as F
 
 
 class DDSA_FFNN(nn.Module):

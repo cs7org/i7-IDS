@@ -4,11 +4,9 @@ from ids_expt.data.adversarial_data_pair import (
     TorchPairDataset,
     AdversarialDataPair,
 )
-from ids_expt.models.unet import UnetAE
 from ids_expt.models.trainer_adv import AdvTrainer, NNTrainerConfig
 import torch
 from pathlib import Path
-import os
 from loguru import logger
 import argparse
 import cv2
