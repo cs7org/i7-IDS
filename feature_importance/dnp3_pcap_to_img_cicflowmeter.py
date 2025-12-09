@@ -42,7 +42,6 @@ def is_dnp3_packet(pkt):
 
 @dataclass
 class Session:
-
     start_time: pd.Timestamp
     end_time: pd.Timestamp
     packets: list[Packet]
@@ -126,7 +125,6 @@ class PCAPSessionFeatureExtractor:
         packet_buffer: list[tuple[Packet, float]],
         df: pd.DataFrame = pd.DataFrame(),
     ):
-
         labelled_sessions = []
         file_path = self.pcap_path
         all_packets = packet_buffer
@@ -142,7 +140,7 @@ class PCAPSessionFeatureExtractor:
             pbar.update(1)
             start_dt = row["timestamp"] - pd.Timedelta(hours=3)
             end_dt = start_dt + pd.Timedelta(
-                microseconds=df.iloc[0].duration, seconds=self.correction_sec
+                microseconds=row.duration, seconds=self.correction_sec
             )
             # convert to seconds
             start_sec = start_dt.timestamp()
