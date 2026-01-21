@@ -93,3 +93,20 @@ The best one was PFI. A visualisation is available in notebook [notebooks/featur
 
 ### Reproducing Results
 An attempt was made to reproduce results from some research work done on tabular data. See notebook [notebooks/reproducing_results.ipynb](notebooks/reproducing_results.ipynb).
+
+## Acknowledgment
+The authors gratefully acknowledge the scientific support and HPC resources provided by the Erlangen National High Performance Computing Center (NHR@FAU) of the Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU). The hardware is funded by the German Research Foundation (DFG).
+
+## Citation
+Please cite as:
+
+```bibtex
+@mastersthesis{Acharya2025,
+    author = {Ramkrishna Acharya},
+    title = {Enhancing Smart Grid Security: A Deep Learning Approach to Adversarial Intrusion Detection},
+    school = {Friedrich-Alexander-Universität Erlangen-Nürnberg, Department of Computer Science, Computer Networks and Communication Systems},
+    year = {2025},
+    month = {September},
+    address = {Erlangen, Germany}
+}
+```
