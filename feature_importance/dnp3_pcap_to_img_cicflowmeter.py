@@ -318,8 +318,8 @@ class PCAPSessionFeatureExtractor:
 
         for i, pkt in enumerate(packets):
             # Extract payload bytes (handles different packet representations)
-            if hasattr(pkt, "payload"):
-                raw_bytes = bytes(pkt.payload) if pkt.payload else b""
+            if hasattr(pkt, "load"):
+                raw_bytes = bytes(pkt.load) if pkt.load else b""
             elif isinstance(pkt, bytes):
                 raw_bytes = pkt
             else:

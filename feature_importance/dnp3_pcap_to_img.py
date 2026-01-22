@@ -34,7 +34,7 @@ def is_dnp3_packet(pkt):
         return False
 
     # Check if payload exists and starts with DNP3 header bytes 0x05 0x64
-    raw = bytes(l4.payload)
+    raw = bytes(l4.load)
     if len(raw) >= 2 and raw[0] == 0x05 and raw[1] == 0x64:
         return True
     return False
@@ -329,7 +329,7 @@ class PCAPSessionFeatureExtractor:
         for i, pkt in enumerate(packets):
             # Extract payload bytes (handles different packet representations)
             if hasattr(pkt, "payload"):
-                raw_bytes = bytes(pkt.payload) if pkt.payload else b""
+                raw_bytes = bytes(pkt.load) if pkt.load else b""
             elif isinstance(pkt, bytes):
                 raw_bytes = pkt
             else:
