@@ -373,17 +373,17 @@ for adversarial_name in adversarial_names:
         adv_recon_mae_values = []
         adv_recon_inp_mae_values = []
 
+        clean_recon_max_diff_values = []
+        adv_recon_max_diff_values = []
 
         # label, clean, adversarial, reconstructed
         sample_images = {}
         completed_non_adversarial = False
 
-        for batch_idx, (input_batch, adversarial_batch, label_indices) in tqdm.tqdm(
-            enumerate(dataloader),
-            total=len(dataloader),
-            desc=f"{adversarial_name}",
-            disable=not sys.stdout.isatty(),
-        ):
+        for batch_idx, (input_batch, adversarial_batch, label_indices) in tqdm.tqdm(enumerate(dataloader),
+                                                                                    total=len(dataloader),
+                                                                                    desc=f"{adversarial_name}",
+                                                                                    disable=not sys.stdout.isatty()):
             input_batch = input_batch.to(device)
             adversarial_batch = adversarial_batch.to(device)
             label_indices = label_indices.cpu().numpy()
@@ -406,13 +406,6 @@ for adversarial_name in adversarial_names:
                 input_batch,
                 adversarial_batch,
             )
-            #  = get_predictions(
-            #     clf_model,
-            #     adv_model,
-            #     ae_model,
-            #     input_batch,
-            #     adversarial_batch,
-            # )
             if not completed_non_adversarial:
                 for idx, label in enumerate(label_indices):
                     label_str = dataset.labels[label]
@@ -458,6 +451,25 @@ for adversarial_name in adversarial_names:
                 .cpu()
                 .numpy()
             )
+            # get single max diff value across all pixels for each image in batch
+            clean_recon_max_diff = (
+                torch.max(
+                    torch.abs(input_batch - recon_input).view(input_batch.size(0), -1),
+                    dim=1,
+                )[0]
+                .cpu()
+                .numpy()
+            )
+            adv_recon_max_diff = (
+                torch.max(
+                    torch.abs(adversarial_batch - recon_adversarial).view(
+                        adversarial_batch.size(0), -1
+                    ),
+                    dim=1,
+                )[0]
+                .cpu()
+                .numpy()
+            )
             adv_recon_mae = (
                 torch.mean(
                     torch.abs(adversarial_batch - recon_adversarial).view(
@@ -481,6 +493,8 @@ for adversarial_name in adversarial_names:
             clean_recon_mae_values.extend(clean_recon_mae.tolist())
             adv_recon_mae_values.extend(adv_recon_mae.tolist())
             adv_recon_inp_mae_values.extend(adv_recon_inp_mae.tolist())
+            clean_recon_max_diff_values.extend(clean_recon_max_diff.tolist())
+            adv_recon_max_diff_values.extend(adv_recon_max_diff.tolist())
 
 
         true_targets = np.array(true_targets)
@@ -531,12 +545,25 @@ for adversarial_name in adversarial_names:
             true_targets,
             labels,
         )
+        # save mae values as npy file in sample_images_dir
+        clean_recon_mae_values = np.array(clean_recon_mae_values)
+        adv_recon_mae_values = np.array(adv_recon_mae_values)
+        adv_recon_inp_mae_values = np.array(adv_recon_inp_mae_values)
+        
+        # save in N, 4 arrays: clean_recon_mae, adv_recon_mae, clean_recon_max_diff, adv_recon_max_diff
+        recon_values = np.zeros((len(clean_recon_mae_values), 4))
+        
+        recon_values[:, 0] = clean_recon_mae_values
+        recon_values[:, 1] = adv_recon_mae_values
+        recon_values[:, 2] = clean_recon_max_diff_values
+        recon_values[:, 3] = adv_recon_max_diff_values
+
+        np.save(sample_images_dir / f"{ae_path.name}_recon_values.npy", recon_values)
 
         # Calculate MAE values
-
         clean_recon_mae_values = np.mean(clean_recon_mae_values)
         adv_recon_mae_values = np.mean(adv_recon_mae_values)
-        adv_recon_inp_mae_values = np.mean(adv_recon_inp_mae_values)
+        adv_recon_inp_mae_values = np.mean(adv_recon_inp_mae_values)       
 
         logger.info(
             f"Results for {adversarial_name} "

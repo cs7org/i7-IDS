@@ -4,15 +4,17 @@ import torch
 import psutil
 import platform
 from pynvml import *
-from ptflops import get_model_complexity_info
+import thop  # Replace ptflops with thop
 from pathlib import Path
 from loguru import logger
 import pandas as pd
 import numpy as np
 
+
 def benchmark_pytorch_model(model_path, input_size=(1, 3, 224, 224), batch_size=32, device="cuda", iterations=10):
     """
     Fully integrated benchmark: time, memory, energy, thermals, FLOPs, power, storage, CPU/GPU info.
+    Uses thop instead of ptflops for FLOPs/MACs calculation.
     """
 
     assert os.path.isfile(model_path), f"Model not found: {model_path}"
@@ -22,24 +24,50 @@ def benchmark_pytorch_model(model_path, input_size=(1, 3, 224, 224), batch_size=
     model = torch.load(model_path, map_location=device, weights_only=False)
     model.eval().to(device)
 
-    # ───── Parameter and FLOP Count ─────
+    # ───── Parameter and FLOP Count with THOP ─────
     num_params = sum(p.numel() for p in model.parameters())
     num_params_million = round(num_params / 1e6, 3)
-    try:
-        macs, _ = get_model_complexity_info(model, input_size[1:], as_strings=False, print_per_layer_stat=False)
-        flops_million = round(macs / 1e6, 3)
-    except Exception:
-        flops_million = None  # fallback
+    
+    # Use thop instead of ptflops
+    dummy_input = torch.randn(1, *input_size[1:]).to(device)
+    flops, params = thop.profile(model, inputs=(dummy_input,), verbose=False)
+    flops_million = round(flops / 1e6, 3)
+    params_million = round(params / 1e6, 3)
 
-    # ───── Dummy Input ─────
+    # ───── Dummy Input for Benchmarking ─────
     input_shape = (batch_size,) + input_size[1:]
-    dummy_input = torch.randn(input_shape).to(device)
+    benchmark_input = torch.randn(input_shape).to(device)
 
     # ───── Warm-up ─────
     with torch.no_grad():
         for _ in range(3):
-            _ = model(dummy_input)
+            _ = model(benchmark_input)
+    
+    def calc_fps(model, batch_size, device, in_channel=None, input_hw=None):
+        """Returns FPS or None."""
 
+        if in_channel is None:
+            in_channel = 1
+        if input_hw is None:
+            input_hw = (138, 256)
+        model.eval()
+        dummy = torch.randn(batch_size, in_channel, *input_hw).to(device)
+        with torch.no_grad():
+            for _ in range(5):
+                _ = model(dummy)
+        if device == "cuda":
+            torch.cuda.synchronize()
+        start = time.perf_counter()
+        with torch.no_grad():
+            for _ in range(50):
+                _ = model(dummy)
+        if device == "cuda":
+            torch.cuda.synchronize()
+        elapsed = time.perf_counter() - start
+        return round((50 * batch_size) / elapsed, 1)
+
+    avg_fps = calc_fps(model, batch_size, device, input_size[1], 
+                       input_size[2:])
     # ───── CPU & RAM Stats ─────
     process = psutil.Process(os.getpid())
     ram_before = process.memory_info().rss / 1024**2
@@ -69,7 +97,7 @@ def benchmark_pytorch_model(model_path, input_size=(1, 3, 224, 224), batch_size=
         for _ in range(iterations):
             power_draw = nvmlDeviceGetPowerUsage(handle) / 1000.0  # mW → W
             power_readings.append(power_draw)
-            _ = model(dummy_input)
+            _ = model(benchmark_input)
     end_time = time.time()
 
     energy_end = nvmlDeviceGetTotalEnergyConsumption(handle)
@@ -88,11 +116,13 @@ def benchmark_pytorch_model(model_path, input_size=(1, 3, 224, 224), batch_size=
         "batch_size": batch_size,
         "input_size": input_size,
         "model_size_MB": round(os.path.getsize(model_path) / 1024**2, 2),
+        "avg_fps": avg_fps,
 
-        # Parameters
+        # Parameters (from thop)
         "num_params": num_params,
         "num_params_million": num_params_million,
         "flops_million": flops_million,
+        "thop_params_million": params_million,  # Additional from thop
 
         # Timing
         "iterations": iterations,
@@ -123,7 +153,6 @@ def benchmark_pytorch_model(model_path, input_size=(1, 3, 224, 224), batch_size=
         "cpu_affinity_count": cpu_affinity_count,
         "cpu_usage_percent": round(process.cpu_percent(interval=None), 2),
     }
-
 
 
 if __name__ == "__main__":
@@ -164,7 +193,7 @@ if __name__ == "__main__":
                     import traceback
                     logger.error(traceback.format_exc())
                     continue
+    
     # Save results to a CSV file
-    import pandas as pd
     df_data = pd.DataFrame([item for sublist in final_results for item in sublist])
     df_data.to_csv('results/benchmark_results.csv', index=False)
